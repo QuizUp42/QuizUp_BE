@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      IMAGE_OWNER: ${{ github.repository_owner }}
+      IMAGE_OWNER: quizup42
       IMAGE_NAME: quiz-platform
 
     steps:
@@ -111,5 +111,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/quiz-platform:latest
-            ghcr.io/${{ github.repository_owner }}/quiz-platform:${{ github.sha }} 
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} 
