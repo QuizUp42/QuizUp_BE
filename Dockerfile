@@ -1,5 +1,6 @@
 # Stage 1: Build 단계
 FROM node:18-alpine AS builder
+RUN apk add --no-cache python3 make g++ sqlite-dev  # sqlite3 빌드 의존성 및 헤더 설치
 WORKDIR /app
 
 # package.json 설치
@@ -26,4 +27,4 @@ COPY --from=builder /app/package*.json ./
 # 포트 설정 및 실행
 ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "dist/main"] 
+CMD ["node", "dist/main.js"] 
