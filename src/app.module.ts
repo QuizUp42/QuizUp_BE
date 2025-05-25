@@ -30,7 +30,7 @@ import { RankingModule } from './ranking/ranking.module';
         database: config.get<string>('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: config.get<boolean>('DB_SYNCHRONIZE', false),
-        dropSchema: true,
+        dropSchema: config.get<boolean>('DB_DROP_SCHEMA', false),
         connectTimeoutMS: 10000,
       }),
     }),
