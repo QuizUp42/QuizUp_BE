@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { StudentProfile } from './student-profile.entity';
 import { ProfessorProfile } from './professor-profile.entity';
 import { Message } from '../../chat/entities/message.entity';
+import { Check } from '../../chat/entities/check.entity';
 
 export type UserRole = 'student' | 'professor';
 
@@ -12,7 +13,8 @@ export class User {
 
   @Column()
   name: string;
-
+  
+  //제외
   @Column({ unique: true })
   username: string;
 
@@ -36,4 +38,7 @@ export class User {
 
   @OneToMany(() => Message, message => message.author)
   messages: Message[];
+
+  @OneToMany(() => Check, check => check.professor)
+  checks: Check[];
 } 

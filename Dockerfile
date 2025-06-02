@@ -10,6 +10,7 @@ RUN npm install
 # 소스 복사 및 빌드
 COPY . .
 RUN npm run build
+RUN npm prune --production
 
 # Stage 2: Production 단계
 FROM node:18-alpine

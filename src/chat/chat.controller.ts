@@ -1,7 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { RoomsService } from '../rooms/rooms.service';
-import { Message } from './entities/message.entity';
 
 @Controller('rooms')
 export class ChatController {
@@ -14,13 +13,13 @@ export class ChatController {
   async getMessages(
     @Param('room') roomCode: string,
     @Query('limit') limit?: string,
-  ): Promise<Message[]> {
+  ): Promise<Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }>> {
     const room = await this.roomsService.findByCode(roomCode);
-    let msgs = await this.chatService.getMessages(room.id);
+    let events = await this.chatService.getChatHistory(room.id);
     if (limit) {
       const num = parseInt(limit, 10);
-      msgs = msgs.slice(-num);
+      events = events.slice(-num);
     }
-    return msgs;
+    return events;
   }
 }

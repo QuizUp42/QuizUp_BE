@@ -10,6 +10,7 @@ import {
 import { StudentProfile } from '../../auth/entities/student-profile.entity';
 import { ProfessorProfile } from '../../auth/entities/professor-profile.entity';
 import { Message } from '../../chat/entities/message.entity';
+import { Check } from '../../chat/entities/check.entity';
 
 @Entity('rooms')
 export class Room {
@@ -42,4 +43,7 @@ export class Room {
 
   @OneToMany(() => Message, message => message.room)
   messages: Message[];
+
+  @OneToMany(() => Check, check => check.room)
+  checks: Check[];
 }

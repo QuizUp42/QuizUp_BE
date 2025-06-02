@@ -8,6 +8,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
+import { MeController } from './me/me.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -40,7 +41,7 @@ import { RankingModule } from './ranking/ranking.module';
     QuizModule,
     RankingModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, MeController],
   providers: [AppService],
 })
 export class AppModule {}

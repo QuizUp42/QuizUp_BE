@@ -1,14 +1,16 @@
-import { WebSocketGateway, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, ConnectedSocket, MessageBody } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
+import { WebSocketGateway, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, ConnectedSocket, MessageBody, WsException } from '@nestjs/websockets';
+import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth/auth.service';
 import { ChatService } from './chat.service';
 import { QuizService } from './quiz.service';
 import { RoomsService } from '../rooms/rooms.service';
-import { WsJwtAuthGuard } from '../auth/ws-jwt.guard';
-import { WsRolesGuard } from '../auth/ws-roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JoinRoomDto } from './dto/join-room.dto';
+import { AnswerOxQuizDto } from './dto/answer-ox-quiz.dto';
+import { EVENTS } from './events';
 
-@UseGuards(WsJwtAuthGuard, WsRolesGuard)
+@Injectable()
 @WebSocketGateway({
   namespace: '/students',
   cors: { origin: '*' },
@@ -16,59 +18,191 @@ import { Roles } from '../auth/roles.decorator';
   pingTimeout: 60000,
 })
 export class StudentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer() server: Server;
+  @WebSocketServer()
+  server: Server;
 
   constructor(
+    private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
     private readonly chatService: ChatService,
     private readonly quizService: QuizService,
     private readonly roomsService: RoomsService,
   ) {}
 
-  handleConnection(client: Socket) {
-    console.log(`학생 연결: ${client.id}`);
+  async handleConnection(client: Socket) {
+    // Extract token from auth, query, header or cookie
+    let token = client.handshake.auth?.token as string;
+    if (!token && client.handshake.query?.auth) {
+      try {
+        token = JSON.parse(client.handshake.query.auth as string).token;
+      } catch {}
+    }
+    if (!token && client.handshake.headers.authorization) {
+      const parts = (client.handshake.headers.authorization as string).split(' ');
+      token = parts.length > 1 ? parts[1] : parts[0];
+    }
+    if (!token) {
+      console.log(`Unauthorized: no token`);
+      client.disconnect(true);
+      return;
+    }
+
+    // Verify JWT
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch {
+      console.log(`Unauthorized: invalid token`);
+      client.disconnect(true);
+      return;
+    }
+
+    // Check blacklist and user existence
+    if (await this.authService.isBlacklisted(token)) {
+      console.log(`Unauthorized: token blacklisted`);
+      client.disconnect(true);
+      return;
+    }
+    let user;
+    try {
+      user = await this.authService.findUserById(payload.sub);
+    } catch {
+      console.log(`Unauthorized: user lookup failed`);
+      client.disconnect(true);
+      return;
+    }
+    if (!user) {
+      console.log(`Unauthorized: user not found`);
+      client.disconnect(true);
+      return;
+    }
+
+    // Role check: 학생만 연결 허용
+    if (user.role !== 'student') {
+      console.log(`Unauthorized: role not student`);
+      client.disconnect(true);
+      return;
+    }
+
+    client.data.user = { id: user.id, username: user.username, role: user.role };
+    // 연결 완료: 인증된 학생 클라이언트
+    console.log(`Connected: ${client.id} (user: ${user.username})`);
   }
 
-  handleDisconnect(client: Socket) {
-    console.log(`학생 연결 해제: ${client.id}`);
+  async handleDisconnect(client: Socket) {
+    const user = client.data.user;
+    console.log(`학생 연결 해제: ${client.id} (user: ${user?.username})`);
+    client.rooms.forEach(room => {
+      if (room !== client.id) {
+        this.server.to(room).emit('userLeft', {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+        });
+      }
+    });
   }
 
-  @Roles('student')
-  @SubscribeMessage('joinRoom')
+  @SubscribeMessage(EVENTS.ROOM_JOIN)
+  // 클라이언트 → 서버: 방 참가 요청 (payload: JoinRoomDto { room })
   async onJoinRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { username: string; room: string },
+    @MessageBody() dto: JoinRoomDto,
   ) {
-    console.log(`[StudentsGateway] onJoinRoom payload: username=${payload.username}, room=${payload.room}`);
-    client.data.username = payload.username;
-    client.join(payload.room);
-    client.emit('joinedRoom', payload.room);
-    // DB에서 room code로 Room 엔티티 조회
-    const roomEntity = await this.roomsService.findByCode(payload.room);
-    // 과거 메시지 전송 (roomEntity.id 사용)
-    const history = await this.chatService.getMessages(roomEntity.id);
-    client.emit('messages', history);
-    // 과거 퀴즈 이벤트 전송
-    const quizHistory = this.quizService.getEvents(payload.room);
+    const user = client.data.user;
+    const room = dto.room;
+    console.log(`[${EVENTS.ROOM_JOIN}] user=${user.username}, room=${room}`);
+    // 방 코드 유효성 검사
+    let roomEntity;
+    try {
+      roomEntity = await this.roomsService.findByCode(room);
+    } catch {
+      throw new WsException(`Room ${room} not found`);
+    }
+    // 소켓을 해당 방(room)으로 join
+    client.join(room);
+
+    // 브로드캐스트: 학생 네임스페이스에 참가 알림(EVENTS.ROOM_JOINED) 전송
+    this.server.to(room).emit(EVENTS.ROOM_JOINED, {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    });
+    // 브로드캐스트: 교사 네임스페이스에 참가 알림(EVENTS.ROOM_JOINED) 전송
+    const rootServer = (this.server as any).server as Server;
+    rootServer.of('/teachers').to(room).emit(EVENTS.ROOM_JOINED, {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    });
+    // 응답: 본인에게 참가 성공 알림(EVENTS.ROOM_JOINED) 전송
+    client.emit(EVENTS.ROOM_JOINED, room);
+
+    // 응답: 채팅 이력(EVENTS.MESSAGES) 전송
+    const history = await this.chatService.getChatHistory(roomEntity.id);
+    client.emit(EVENTS.MESSAGES, history);
+
+    // 응답: 퀴즈 이력('quizHistory') 전송
+    const quizHistory = this.quizService.getEvents(room);
     client.emit('quizHistory', quizHistory);
   }
 
-  @Roles('student')
-  @SubscribeMessage('chatMessage')
+  @SubscribeMessage(EVENTS.CHAT_SEND)
+  // 클라이언트 → 서버: 채팅 메시지 전송 요청 (payload: {room, text})
   async onMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { room: string; text: string },
   ) {
-    console.log(`[StudentsGateway] Received chatMessage in room ${payload.room} from ${client.data.username}: ${payload.text}`);
+    const user = client.data.user;
     const roomEntity = await this.roomsService.findByCode(payload.room);
+    console.log(`[${EVENTS.CHAT_SEND}] from ${user.username} in roomCode=${roomEntity.code} (roomId=${roomEntity.id}): ${payload.text}`);
     const msg = await this.chatService.createMessage({
       roomId: roomEntity.id,
-      authorId: (client.data.user as any).id,
+      authorId: user.id,
       message: payload.text,
     });
-    // 학생 네임스페이스에 브로드캐스트
-    this.server.to(payload.room).emit('chatMessage', msg);
-    // 교수 네임스페이스에도 브로드캐스트
-    // @ts-ignore
-    (client as any).server.of('/teachers').to(payload.room).emit('chatMessage', msg);
+
+    // 브로드캐스트: 학생 네임스페이스에 채팅 메시지(EVENTS.CHAT_MESSAGE) 전송
+    this.server.to(payload.room).emit(EVENTS.CHAT_MESSAGE, msg);
+    // 브로드캐스트: 교사 네임스페이스에 채팅 메시지(EVENTS.CHAT_MESSAGE) 전송
+    const rootServer = (this.server as any).server as Server;
+    rootServer.of('/teachers').to(payload.room).emit(EVENTS.CHAT_MESSAGE, msg);
   }
-} 
+
+  @SubscribeMessage(EVENTS.CHECK_TOGGLE)
+  // 클라이언트 → 서버: 체크 토글 요청 (payload: {room, checkId, isChecked})
+  async handleToggleCheck(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { room: string; checkId: number; isChecked: boolean },
+  ) {
+    // 체크 토글 요청 로그
+    console.log(`[${EVENTS.CHECK_TOGGLE}] room=${payload.room}, checkId=${payload.checkId}, isChecked=${payload.isChecked}`);
+    const roomEntity = await this.roomsService.findByCode(payload.room);
+    const updated = await this.chatService.toggleCheck(payload.checkId, payload.isChecked);
+    // 체크 토글 결과 로그
+    console.log(`[${EVENTS.CHECK_TOGGLED}] updated check=`, updated);
+    // 브로드캐스트: 학생 네임스페이스에 체크 토글 결과(EVENTS.CHECK_TOGGLED) 전송
+    this.server.to(payload.room).emit(EVENTS.CHECK_TOGGLED, updated);
+    // 브로드캐스트: 교사 네임스페이스에 체크 토글 결과(EVENTS.CHECK_TOGGLED) 전송
+    const rootServer = (this.server as any).server as Server;
+    rootServer.of('/teachers').to(payload.room).emit(EVENTS.CHECK_TOGGLED, updated);
+    return updated;
+  }
+
+  @SubscribeMessage(EVENTS.OXQUIZ_ANSWER)
+  // 클라이언트 → 서버: OX퀴즈 응답 제출 요청 (payload: AnswerOxQuizDto)
+  async handleOxQuizAnswer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: AnswerOxQuizDto,
+  ) {
+    const user = client.data.user;
+    // OX 퀴즈 응답 저장
+    const answered = await this.chatService.submitOxAnswer(payload.quizId, user.id, payload.answer);
+    // 브로드캐스트: 학생 네임스페이스에 OX퀴즈 응답 결과(EVENTS.OXQUIZ_ANSWERED) 전송
+    this.server.to(payload.room).emit(EVENTS.OXQUIZ_ANSWERED, answered);
+    // 브로드캐스트: 교사 네임스페이스에 OX퀴즈 응답 결과(EVENTS.OXQUIZ_ANSWERED) 전송
+    const rootServer = (this.server as any).server as Server;
+    rootServer.of('/teachers').to(payload.room).emit(EVENTS.OXQUIZ_ANSWERED, answered);
+    return answered;
+  }
+}
