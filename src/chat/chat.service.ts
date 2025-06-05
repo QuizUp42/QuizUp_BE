@@ -86,14 +86,29 @@ export class ChatService {
     return this.checkRepository.find({ where: { roomId: rid } });
   }
 
-  /** 학생 전용: 체크 토글 시 checkCount 및 상태 업데이트 */
+  /** 학생 전용: 체크 토글 시 개인별 상태 업데이트 및 총합 계산 */
   async toggleCheck(
     checkId: number,
+    userId: number,
     isChecked: boolean,
   ): Promise<Check> {
-    const chk = await this.checkRepository.findOneByOrFail({ id: checkId });
-    chk.checkCount = isChecked ? chk.checkCount + 1 : Math.max(0, chk.checkCount - 1);
-    chk.isChecked = isChecked;
+    // 체크 이벤트와 연관된 학생 토글 기록 불러오기
+    const chk = await this.checkRepository.findOneOrFail({
+      where: { id: checkId },
+      relations: ['users'],
+    });
+    // 학생별 사용자 배열 업데이트
+    const existing = chk.users.find(u => u.id === userId);
+    if (isChecked) {
+      if (!existing) {
+        const user = { id: userId } as any;
+        chk.users.push(user);
+      }
+    } else {
+      chk.users = chk.users.filter(u => u.id !== userId);
+    }
+    // 총 체크 수 업데이트
+    chk.checkCount = chk.users.length;
     return this.checkRepository.save(chk);
   }
 

@@ -7,6 +7,8 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { Room } from '../../rooms/entities/room.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -43,4 +45,12 @@ export class Check {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToMany(() => User)
+  @JoinTable({
+    name: 'check_users',
+    joinColumn: { name: 'checkId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' },
+  })
+  users: User[];
 }

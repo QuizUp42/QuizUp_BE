@@ -177,7 +177,8 @@ export class StudentsGateway implements OnGatewayConnection, OnGatewayDisconnect
     // 체크 토글 요청 로그
     console.log(`[${EVENTS.CHECK_TOGGLE}] room=${payload.room}, checkId=${payload.checkId}, isChecked=${payload.isChecked}`);
     const roomEntity = await this.roomsService.findByCode(payload.room);
-    const updated = await this.chatService.toggleCheck(payload.checkId, payload.isChecked);
+    const user = client.data.user;
+    const updated = await this.chatService.toggleCheck(payload.checkId, user.id, payload.isChecked);
     // 체크 토글 결과 로그
     console.log(`[${EVENTS.CHECK_TOGGLED}] updated check=`, updated);
     // 브로드캐스트: 학생 네임스페이스에 체크 토글 결과(EVENTS.CHECK_TOGGLED) 전송
