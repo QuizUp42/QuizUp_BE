@@ -1,9 +1,9 @@
 import { IsString } from 'class-validator';
 
-export class LoginDto {
+export class ChatSendDto {
   @IsString()
-  studentNo: string;
+  room: string;
 
   @IsString()
-  password: string;
+  text: string;
 } 

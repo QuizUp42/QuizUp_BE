@@ -100,42 +100,45 @@ export class ChatService {
   /** 통합 채팅 히스토리 조회: 메시지, OX퀴즈, 체크 이벤트를 하나의 타임라인으로 반환 */
   async getChatHistory(
     roomId: string | number,
-  ): Promise<
-    Array<{
-      type: 'chat' | 'oxquiz' | 'check';
-      timestamp: Date;
-      payload: any;
-    }>
-  > {
+  ): Promise<any[]> {
     const rid = typeof roomId === 'string' ? parseInt(roomId, 10) : roomId;
     const [msgs, oxes, checks] = await Promise.all([
       this.messageRepository.find({ where: { roomId: rid }, relations: ['author'], order: { timestamp: 'ASC' } }),
       this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user'] }),
       this.checkRepository.find({ where: { roomId: rid }, relations: ['professor'] }),
     ]);
-    const events: Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }> = [];
+    const events: any[] = [];
     // 메시지 이벤트
     events.push(
       ...msgs.map((m) => ({
         type: 'chat' as const,
         timestamp: m.timestamp,
-        payload: { id: m.id, message: m.message, username: m.author.username, role: m.author.role },
+       id: m.id, 
+       message: m.message, 
+       username: m.author.username,
+        role: m.author.role ,
       })),
     );
-    // OX퀴즈 이벤트 (role 포함)
+    // OX퀴즈 이벤트 (role 포함) - payload 제거
     events.push(
       ...oxes.map((o) => ({
         type: 'oxquiz' as const,
         timestamp: o.timestamp,
-        payload: { id: o.id, question: o.question, answers: o.answers, role: o.user.role },
+        id: o.id,
+        question: o.question,
+        answers: o.answers,
+        role: o.user.role,
       })),
     );
-    // 체크 이벤트 (role 포함)
+    // 체크 이벤트 (role 포함) - payload 제거
     events.push(
       ...checks.map((c) => ({
         type: 'check' as const,
         timestamp: c.createdAt,
-        payload: { id: c.id, isChecked: c.isChecked, checkCount: c.checkCount, role: c.professor.role },
+        id: c.id,
+        isChecked: c.isChecked,
+        checkCount: c.checkCount,
+        role: c.professor.role,
       })),
     );
     // 타임스탬프 기준 정렬

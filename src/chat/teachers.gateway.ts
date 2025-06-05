@@ -11,6 +11,9 @@ import { QuizDto } from './dto/quiz.dto';
 import { RoomsService } from '../rooms/rooms.service';
 import { EVENTS } from './events';
 import { WsException } from '@nestjs/websockets';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { ChatSendDto } from './dto/chat-send.dto';
+import { JoinRoomDto } from './dto/join-room.dto';
 
 @Injectable()
 @WebSocketGateway({
@@ -102,10 +105,11 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(EVENTS.ROOM_JOIN)
-  // 클라이언트 → 서버: { username, room } 형태로 방 참가 요청을 받음
+  // 클라이언트 → 서버: { room } 형태로 방 참가 요청을 받음
+  @UsePipes(new ValidationPipe({ transform: true, exceptionFactory: () => new WsException('Invalid payload: room is required') }))
   async onJoinRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { username: string; room: string },
+    @MessageBody() payload: JoinRoomDto,
   ) {
     const user = client.data.user;
     console.log(`[${EVENTS.ROOM_JOIN}] user=${user.username}, room=${payload.room}`);
@@ -116,7 +120,6 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     } catch {
       throw new WsException(`Room ${payload.room} not found`);
     }
-    client.data.username = payload.username;
     client.join(payload.room);
 
     // 브로드캐스트: 룸에 참가 알림(EVENTS.ROOM_JOINED) 전송
@@ -133,9 +136,8 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
   // 클라이언트 → 서버: { room, text } 형태로 채팅 메시지 전송 요청을 받음
   async onMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { room: string; text: string },
+    @MessageBody() payload: ChatSendDto,
   ) {
-    // 브로드캐스트: 룸에 채팅 메시지(EVENTS.CHAT_MESSAGE) 전송 (교사 네임스페이스)
     const user = client.data.user;
     const roomEntity = await this.roomsService.findByCode(payload.room);
     console.log(`[${EVENTS.CHAT_SEND}] from ${user.username} in roomCode=${roomEntity.code} (roomId=${roomEntity.id}): ${payload.text}`);

@@ -19,7 +19,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    snapshot : true
+  });
   // Socket.IO 어댑터 등록 (socket.io 서버 사용)
   app.useWebSocketAdapter(new IoAdapter(app));
   // HTTP 쿠키 파싱 (refresh token 쿠키 활용)
@@ -28,6 +30,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
+  
   // CORS 설정: 요청 출처를 동적으로 허용하고 쿠키를 포함한 인증 정보를 전달
   app.enableCors({
     origin: true,

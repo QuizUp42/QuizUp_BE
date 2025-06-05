@@ -9,6 +9,8 @@ import { RoomsService } from '../rooms/rooms.service';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { AnswerOxQuizDto } from './dto/answer-ox-quiz.dto';
 import { EVENTS } from './events';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { ChatSendDto } from './dto/chat-send.dto';
 
 @Injectable()
 @WebSocketGateway({
@@ -105,53 +107,50 @@ export class StudentsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage(EVENTS.ROOM_JOIN)
   // 클라이언트 → 서버: 방 참가 요청 (payload: JoinRoomDto { room })
+  @UsePipes(new ValidationPipe({ transform: true, exceptionFactory: () => new WsException('Invalid payload: room is required') }))
   async onJoinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: JoinRoomDto,
   ) {
-    const user = client.data.user;
-    const room = dto.room;
-    console.log(`[${EVENTS.ROOM_JOIN}] user=${user.username}, room=${room}`);
-    // 방 코드 유효성 검사
-    let roomEntity;
     try {
-      roomEntity = await this.roomsService.findByCode(room);
-    } catch {
-      throw new WsException(`Room ${room} not found`);
+      const rawUser = client.data.user;
+      const user = rawUser ?? { id: null, username: '', role: '' };
+      const room = dto.room;
+      console.log(`[${EVENTS.ROOM_JOIN}] user=${user.username}, room=${room}`);
+      // 방 코드 유효성 검사
+      let roomEntity;
+      try {
+        roomEntity = await this.roomsService.findByCode(room);
+      } catch {
+        throw new WsException(`Room ${room} not found`);
+      }
+      // 소켓을 해당 방(room)으로 join
+      client.join(room);
+      // 브로드캐스트: 학생 네임스페이스에 참가 알림
+      this.server.to(room).emit(EVENTS.ROOM_JOINED, { userId: user.id, username: user.username, role: user.role });
+      // 브로드캐스트: 교사 네임스페이스에 참가 알림
+      const rootServer = (this.server as any).server as Server;
+      rootServer.of('/teachers').to(room).emit(EVENTS.ROOM_JOINED, { userId: user.id, username: user.username, role: user.role });
+      // 응답: 본인에게 참가 성공 알림
+      client.emit(EVENTS.ROOM_JOINED, room);
+      // 응답: 채팅 이력 전송
+      const history = await this.chatService.getChatHistory(roomEntity.id);
+      client.emit(EVENTS.MESSAGES, history);
+      // 응답: 퀴즈 이력 전송
+      const quizHistory = this.quizService.getEvents(room);
+      client.emit('quizHistory', quizHistory);
+    } catch (err) {
+      console.error('[ROOM_JOIN] 처리 중 에러:', err);
+      throw err instanceof WsException ? err : new WsException(err.message || '방 참가 중 내부 에러');
     }
-    // 소켓을 해당 방(room)으로 join
-    client.join(room);
-
-    // 브로드캐스트: 학생 네임스페이스에 참가 알림(EVENTS.ROOM_JOINED) 전송
-    this.server.to(room).emit(EVENTS.ROOM_JOINED, {
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-    });
-    // 브로드캐스트: 교사 네임스페이스에 참가 알림(EVENTS.ROOM_JOINED) 전송
-    const rootServer = (this.server as any).server as Server;
-    rootServer.of('/teachers').to(room).emit(EVENTS.ROOM_JOINED, {
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-    });
-    // 응답: 본인에게 참가 성공 알림(EVENTS.ROOM_JOINED) 전송
-    client.emit(EVENTS.ROOM_JOINED, room);
-
-    // 응답: 채팅 이력(EVENTS.MESSAGES) 전송
-    const history = await this.chatService.getChatHistory(roomEntity.id);
-    client.emit(EVENTS.MESSAGES, history);
-
-    // 응답: 퀴즈 이력('quizHistory') 전송
-    const quizHistory = this.quizService.getEvents(room);
-    client.emit('quizHistory', quizHistory);
   }
 
   @SubscribeMessage(EVENTS.CHAT_SEND)
   // 클라이언트 → 서버: 채팅 메시지 전송 요청 (payload: {room, text})
+  @UsePipes(new ValidationPipe({ transform: true, exceptionFactory: () => new WsException('Invalid payload: room and text are required') }))
   async onMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { room: string; text: string },
+    @MessageBody() payload: ChatSendDto,
   ) {
     const user = client.data.user;
     const roomEntity = await this.roomsService.findByCode(payload.room);

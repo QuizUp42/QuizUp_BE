@@ -37,7 +37,7 @@ services:
     volumes:
       - .:/app
       - /etc/localtime:/etc/localtime:ro
-    command: npm run start:dev
+    command: npm run start:dev:devtools
     depends_on:
       db:
         condition: service_healthy

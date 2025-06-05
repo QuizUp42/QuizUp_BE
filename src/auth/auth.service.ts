@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,44 +20,39 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { role, studentNo, username, password } = loginDto;
-    // 프로필 조회
+    const { studentNo, password } = loginDto;
+
+    // 프로필 조회: 학생 먼저, 없으면 교수
     let profile: StudentProfile | ProfessorProfile | null;
-    if (role === 'student') {
-      profile = await this.studentProfileRepository.findOne({
-        where: { studentNo },
-        relations: ['user'],
-      });
+    let userRole: 'student' | 'professor';
+    profile = await this.studentProfileRepository.findOne({ where: { studentNo }, relations: ['user'] });
+    if (profile) {
+      userRole = 'student';
     } else {
-      profile = await this.professorProfileRepository.findOne({
-        where: { professorNo: studentNo },
-        relations: ['user'],
-      });
+      profile = await this.professorProfileRepository.findOne({ where: { professorNo: studentNo }, relations: ['user'] });
+      userRole = 'professor';
     }
     if (!profile) throw new UnauthorizedException('Invalid credentials');
     const user = profile.user;
+
     // 사용자명 및 비밀번호 검증
-    if (user.username !== username || !(await bcrypt.compare(password, user.password))) {
+    if (!(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
     // JWT 페이로드
-    const payload = { sub: user.id, username: user.username, role: user.role };
+    const payload = { sub: user.id, role: userRole };
     // 액세스 토큰(1시간) 및 리프레시 토큰(7일)
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, role: userRole };
   }
 
   async register(registerDto: import('./dto/register.dto').RegisterDto) {
-    const { name, role, studentNo, username, password } = registerDto;
-    // 기존 사용자명 중복 체크
-    if (await this.userRepository.findOne({ where: { username } })) {
-      throw new (require('@nestjs/common').BadRequestException)('Username already exists');
-    }
+    const { name, role, studentNo, password } = registerDto;
     // 비밀번호 해싱
     const hashed = await bcrypt.hash(password, 10);
     // 유저 생성
-    const user = this.userRepository.create({ name, username, password: hashed, role });
+    const user = this.userRepository.create({ name, password: hashed, role });
     const savedUser = await this.userRepository.save(user);
     // 프로필 생성
     if (role === 'student') {
@@ -68,7 +63,7 @@ export class AuthService {
       await this.professorProfileRepository.save(profile);
     }
     // 자동 로그인 토큰
-    const payload = { sub: savedUser.id, username: savedUser.username, role: savedUser.role };
+    const payload = { sub: savedUser.id, role: savedUser.role };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { accessToken, refreshToken };
@@ -110,7 +105,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    const payload = { sub: decoded.sub, username: decoded.username, role: decoded.role };
+    const payload = { sub: decoded.sub, role: decoded.role };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const newRefreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { accessToken, refreshToken: newRefreshToken };
@@ -157,5 +152,14 @@ export class AuthService {
     }
     // 유저 삭제
     await this.userRepository.delete(userId);
+  }
+
+  // 유저네임 업데이트 메서드
+  async updateUsername(userId: number, username: string): Promise<void> {
+    // 중복 확인
+    if (await this.userRepository.findOne({ where: { username } })) {
+      throw new BadRequestException('Username already exists');
+    }
+    await this.userRepository.update(userId, { username });
   }
 }

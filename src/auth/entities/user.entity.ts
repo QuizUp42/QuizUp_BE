@@ -14,8 +14,7 @@ export class User {
   @Column()
   name: string;
   
-  //제외
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   username: string;
 
   @Column()

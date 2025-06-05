@@ -32,12 +32,12 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload = this.jwtService.verify(token) as any;
-      // DB에서 유저 존재 여부 확인
-      await this.authService.findUserById(payload.sub);
-      // 요청 객체에 사용자 정보 저장
+      // DB에서 유저 존재 여부 및 정보 조회
+      const user = await this.authService.findUserById(payload.sub);
+      // 요청 객체에 사용자 정보 저장 (username은 DB 값 사용)
       request.user = {
-        userId: payload.sub,
-        username: payload.username,
+        userId: user.id,
+        username: user.username,
         role: payload.role,
       };
       return true;

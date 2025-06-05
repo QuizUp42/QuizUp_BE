@@ -13,7 +13,7 @@ export class ChatController {
   async getMessages(
     @Param('room') roomCode: string,
     @Query('limit') limit?: string,
-  ): Promise<Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }>> {
+  ): Promise<any[]> {
     const room = await this.roomsService.findByCode(roomCode);
     let events = await this.chatService.getChatHistory(room.id);
     if (limit) {

@@ -1,10 +1,11 @@
-import { Controller, Post, Body, Res, Req, UnauthorizedException, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Post, Put, Body, Res, Req, UnauthorizedException, Delete, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { Response, Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CookieOptions } from 'express';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 
 // 쿠키 옵션 동적 생성 함수
 const isProd = process.env.NODE_ENV === 'production';
@@ -28,12 +29,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Body() loginDto: LoginDto,
   ) {
-    const { accessToken, refreshToken } = await this.authService.login(loginDto);
+    const { accessToken, refreshToken, role } = await this.authService.login(loginDto);
     // Refresh Token을 HTTP-only 쿠키에 저장
     res.cookie('refreshToken', refreshToken, getCookieOptions());
 
-    // 클라이언트에는 Access Token만 반환
-    return { accessToken };
+    // 클라이언트에는 Access Token과 role을 반환
+    return { accessToken, role };
   }
 
   @Post('register')
@@ -109,5 +110,19 @@ export class AuthController {
     res.clearCookie('refreshToken', getCookieOptions());
 
     return { message: 'User deleted successfully' };
+  }
+
+  /**
+   * 유저네임 업데이트: 인증된 Access Token으로 보호
+   */
+  @UseGuards(JwtAuthGuard)
+  @Put('username')
+  async updateUsername(
+    @Req() req: Request,
+    @Body() updateUsernameDto: UpdateUsernameDto,
+  ) {
+    const userId = (req.user as any).userId;
+    await this.authService.updateUsername(userId, updateUsernameDto.username);
+    return { message: 'Username updated successfully' };
   }
 }
