@@ -107,6 +107,8 @@ export class ChatService {
     } else {
       chk.users = chk.users.filter(u => u.id !== userId);
     }
+    // 현재 사용자의 체크 상태 저장 (isChecked 컬럼 업데이트)
+    chk.isChecked = isChecked;
     // 총 체크 수 업데이트
     chk.checkCount = chk.users.length;
     return this.checkRepository.save(chk);
