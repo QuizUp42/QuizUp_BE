@@ -149,10 +149,11 @@ export class ChatService {
     roomId: string | number,
   ): Promise<any[]> {
     const rid = typeof roomId === 'string' ? parseInt(roomId, 10) : roomId;
-    const [msgs, oxes, checks] = await Promise.all([
+    const [msgs, oxes, checks, draws] = await Promise.all([
       this.messageRepository.find({ where: { roomId: rid }, relations: ['author'], order: { timestamp: 'ASC' } }),
       this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user', 'answers', 'answers.user'] }),
       this.checkRepository.find({ where: { roomId: rid }, relations: ['professor'] }),
+      this.drawRepository.find({ where: { roomId: rid } }),
     ]);
     const events: any[] = [];
     // 메시지 이벤트
@@ -168,13 +169,20 @@ export class ChatService {
     );
     // OX퀴즈 이벤트 (role 포함) - payload 제거
     events.push(
-      ...oxes.map((o) => ({
-        type: 'oxquiz' as const,
-        timestamp: o.timestamp,
-        id: o.id,
-        answers: o.answers.map(a => ({ userId: a.user.id, answer: a.answer })),
-        role: o.user.role,
-      })),
+      ...oxes.map((o) => {
+        const answers = o.answers.map(a => ({ userId: a.user.id, answer: a.answer }));
+        const oCount = answers.filter(a => a.answer === 'O').length;
+        const xCount = answers.filter(a => a.answer === 'X').length;
+        return {
+          type: 'oxquiz' as const,
+          timestamp: o.timestamp,
+          id: o.id,
+          answers,
+          oCount,
+          xCount,
+          role: o.user.role,
+        };
+      }),
     );
     // 체크 이벤트 (role 포함) - payload 제거
     events.push(
@@ -185,6 +193,18 @@ export class ChatService {
         isChecked: c.isChecked,
         checkCount: c.checkCount,
         role: c.professor.role,
+      })),
+    );
+    // 제비뽑기 이벤트
+    events.push(
+      ...draws.map(d => ({
+        type: 'draw' as const,
+        timestamp: d.timestamp,
+        id: d.id,
+        participants: d.participants,
+        participantsCount: d.participants.length,
+        professorId: d.userId,
+        winnerId: d.winnerId,
       })),
     );
     // 타임스탬프 기준 정렬
