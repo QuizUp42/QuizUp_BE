@@ -179,14 +179,24 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
   // 클라이언트 → 서버: 추첨 시작 요청(payload: {room, participants[]})을 받음
   async handleDraw(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { room: string; participants: { userId: number; username: string; role: string }[] },
+    @MessageBody() payload: { room: string },
   ) {
-    // 브로드캐스트: 룸에 추첨 결과(EVENTS.DRAW_RESULT) 전송 (교사/학생 네임스페이스)
     const user = client.data.user;
     const roomEntity = await this.roomsService.findByCode(payload.room);
-    const draw = await this.chatService.createDraw(roomEntity.id, user.id, payload.participants);
-    this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, draw);
-    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.DRAW_RESULT, draw);
+    // DB에 저장된 방 참여자 목록 조회
+    const participants = await this.roomsService.getRoomParticipants(roomEntity.id);
+    const draw = await this.chatService.createDraw(roomEntity.id, user.id, participants);
+    // 필요한 필드만 포함한 결과 payload 생성
+    const resultPayload = {
+      id: draw.id,
+      roomId: draw.roomId,
+      professorId: draw.userId,
+      winnerId: draw.winnerId,
+      participantsCount: draw.participants.length,
+      timestamp: draw.timestamp,
+    };
+    this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
+    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
     return draw;
   }
 

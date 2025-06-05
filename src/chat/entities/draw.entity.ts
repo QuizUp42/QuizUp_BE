@@ -24,4 +24,10 @@ export class Draw {
 
   @CreateDateColumn()
   timestamp: Date;
+
+  @Column({ nullable: true })
+  winnerId?: number;
+  @ManyToOne(() => User, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'winnerId' })
+  winner: User;
 } 

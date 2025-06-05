@@ -6,6 +6,7 @@ import { Draw } from './entities/draw.entity';
 import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
+import { DeepPartial } from 'typeorm';
 
 @Injectable()
 export class ChatService {
@@ -48,10 +49,22 @@ export class ChatService {
     };
   }
 
-  /** 제비뽑기 생성 */
-  async createDraw(roomId: number, userId: number, participants: { userId: number; username: string; role: string }[]): Promise<Draw> {
-    const draw = this.drawRepository.create({ roomId, userId, participants });
-    return this.drawRepository.save(draw);
+  /** 제비뽑기 생성 (랜덤 승자 선정) */
+  async createDraw(
+    roomId: number,
+    userId: number,
+    participants: { userId: number; username: string; role: string }[],
+  ): Promise<Draw> {
+    // 랜덤으로 승자 선정
+    let winnerId: number | undefined;
+    if (participants && participants.length > 0) {
+      const idx = Math.floor(Math.random() * participants.length);
+      winnerId = participants[idx].userId;
+    }
+    // DeepPartial로 타입 선언 후 저장
+    const drawData: DeepPartial<Draw> = { roomId, userId, participants, winnerId };
+    const draw = await this.drawRepository.save(drawData);
+    return draw;
   }
 
   /** OX 퀴즈 생성 */
