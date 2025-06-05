@@ -228,6 +228,7 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
         winnerUsername,
         participantsCount: draw.participants.length,
         timestamp: draw.timestamp,
+        isRelease : draw.isRelease
       };
       console.log(`[${EVENTS.DRAW_RESULT}] broadcasting:`, resultPayload);
       // 교사 네임스페이스 브로드캐스트

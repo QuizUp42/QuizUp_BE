@@ -124,6 +124,10 @@ export class StudentsGateway implements OnGatewayConnection, OnGatewayDisconnect
       } catch {
         throw new WsException(`Room ${room} not found`);
       }
+      // DB에 학생 프로필 방 참여 정보 저장
+      if (rawUser && rawUser.role === 'student') {
+        await this.roomsService.addStudentToRoom(rawUser.id, roomEntity.id);
+      }
       // 소켓을 해당 방(room)으로 join
       client.join(room);
       // 브로드캐스트: 학생 네임스페이스에 참가 알림
