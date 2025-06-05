@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { Draw } from './entities/draw.entity';
 import { OxQuiz } from './entities/ox-quiz.entity';
+import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class ChatService {
     private readonly drawRepository: Repository<Draw>,
     @InjectRepository(OxQuiz)
     private readonly oxQuizRepository: Repository<OxQuiz>,
+    @InjectRepository(OxAnswer)
+    private readonly oxAnswerRepository: Repository<OxAnswer>,
     @InjectRepository(Check)
     private readonly checkRepository: Repository<Check>,
   ) {}
@@ -52,24 +55,38 @@ export class ChatService {
   }
 
   /** OX 퀴즈 생성 */
-  async createOxQuiz(roomId: number, userId: number, question: string): Promise<OxQuiz> {
-    const ox = this.oxQuizRepository.create({ roomId, userId, question, answers: [] });
-    return this.oxQuizRepository.save(ox);
+  async createOxQuiz(roomId: number, userId: number): Promise<OxQuiz> {
+    const ox = this.oxQuizRepository.create({ roomId, userId });
+    await this.oxQuizRepository.save(ox);
+    // relation 초기화
+    ox.answers = [];
+    return ox;
   }
 
-  /** OX 퀴즈 응답 제출 */
+  /** OX 퀴즈 응답 제출 (answer가 null이면 삭제) */
   async submitOxAnswer(
     quizId: number,
     userId: number,
-    answer: 'O' | 'X',
+    answer: 'O' | 'X' | null,
   ): Promise<OxQuiz> {
-    const ox = await this.oxQuizRepository.findOneOrFail({ where: { id: quizId } });
-    const answers = ox.answers || [];
-    // 기존 응답 제거
-    const filtered = answers.filter(a => a.userId !== userId);
-    filtered.push({ userId, answer });
-    ox.answers = filtered;
-    return this.oxQuizRepository.save(ox);
+    if (answer === null) {
+      // 응답 삭제
+      await this.oxAnswerRepository.delete({ quizId, userId });
+    } else {
+      // 기존 답변 조회
+      let oxAnswer = await this.oxAnswerRepository.findOne({ where: { quizId, userId } });
+      if (oxAnswer) {
+        oxAnswer.answer = answer;
+      } else {
+        oxAnswer = this.oxAnswerRepository.create({ quizId, userId, answer });
+      }
+      await this.oxAnswerRepository.save(oxAnswer);
+    }
+    // OX 퀴즈 및 모든 답변 로드
+    return this.oxQuizRepository.findOneOrFail({
+      where: { id: quizId },
+      relations: ['user', 'answers', 'answers.user'],
+    });
   }
 
   /** 교수 전용: 체크리스트 항목 생성 */
@@ -121,7 +138,7 @@ export class ChatService {
     const rid = typeof roomId === 'string' ? parseInt(roomId, 10) : roomId;
     const [msgs, oxes, checks] = await Promise.all([
       this.messageRepository.find({ where: { roomId: rid }, relations: ['author'], order: { timestamp: 'ASC' } }),
-      this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user'] }),
+      this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user', 'answers', 'answers.user'] }),
       this.checkRepository.find({ where: { roomId: rid }, relations: ['professor'] }),
     ]);
     const events: any[] = [];
@@ -142,8 +159,7 @@ export class ChatService {
         type: 'oxquiz' as const,
         timestamp: o.timestamp,
         id: o.id,
-        question: o.question,
-        answers: o.answers,
+        answers: o.answers.map(a => ({ userId: a.user.id, answer: a.answer })),
         role: o.user.role,
       })),
     );

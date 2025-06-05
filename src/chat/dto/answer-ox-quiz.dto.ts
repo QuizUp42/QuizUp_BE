@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsIn } from 'class-validator';
+import { IsString, IsInt, IsIn, IsOptional } from 'class-validator';
 
 export class AnswerOxQuizDto {
   @IsString()
@@ -8,5 +8,6 @@ export class AnswerOxQuizDto {
   quizId: number;
 
   @IsIn(['O', 'X'])
-  answer: 'O' | 'X';
+  @IsOptional()
+  answer?: 'O' | 'X';
 } 

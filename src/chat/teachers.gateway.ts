@@ -191,17 +191,26 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage(EVENTS.OXQUIZ_CREATE)
-  // 클라이언트 → 서버: OX 퀴즈 생성 요청(payload: {room, question})을 받음
+  // 클라이언트 → 서버: OX 퀴즈 생성 요청(payload: {room})을 받음
   async handleOxQuiz(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { room: string; question: string },
+    @MessageBody() payload: { room: string },
   ) {
-    // 브로드캐스트: 룸에 OX 퀴즈 생성 결과(EVENTS.OXQUIZ_CREATED) 전송 (교사/학생 네임스페이스)
     const user = client.data.user;
     const roomEntity = await this.roomsService.findByCode(payload.room);
-    const ox = await this.chatService.createOxQuiz(roomEntity.id, user.id, payload.question);
-    this.server.to(payload.room).emit(EVENTS.OXQUIZ_CREATED, ox);
-    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.OXQUIZ_CREATED, ox);
+    const ox = await this.chatService.createOxQuiz(roomEntity.id, user.id);
+    // O/X 응답 개수 집계
+    const oCount = ox.answers.filter(a => a.answer === 'O').length;
+    const xCount = ox.answers.filter(a => a.answer === 'X').length;
+    const created = {
+      id: ox.id,
+      roomId: ox.roomId,
+      professorId: ox.userId,
+      oCount,
+      xCount,
+    };
+    this.server.to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
+    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
     return ox;
   }
 

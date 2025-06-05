@@ -13,12 +13,13 @@ import { QuizService } from './quiz.service';
 import { Message } from './entities/message.entity';
 import { Draw } from './entities/draw.entity';
 import { OxQuiz } from './entities/ox-quiz.entity';
+import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
 
 @Module({
   imports: [
     forwardRef(() => RoomsModule),
-    TypeOrmModule.forFeature([Message, Draw, OxQuiz, Check]),
+    TypeOrmModule.forFeature([Message, Draw, OxQuiz, OxAnswer, Check]),
     AuthModule,
   ],
   controllers: [ChatController],

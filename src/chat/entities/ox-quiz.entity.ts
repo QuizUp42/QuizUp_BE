@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Room } from '../../rooms/entities/room.entity';
 import { User } from '../../auth/entities/user.entity';
+import { OxAnswer } from './ox-answer.entity';
 
 @Entity('ox_quizzes')
 export class OxQuiz {
@@ -19,11 +20,8 @@ export class OxQuiz {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column('text')
-  question: string;
-
-  @Column('simple-json', { nullable: true })
-  answers?: { userId: number; answer: 'O' | 'X' }[];
+  @OneToMany(() => OxAnswer, answer => answer.quiz)
+  answers: OxAnswer[];
 
   @CreateDateColumn()
   timestamp: Date;
