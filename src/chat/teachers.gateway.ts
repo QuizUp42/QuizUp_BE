@@ -116,9 +116,15 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     // 방 코드 유효성 검사
     let roomEntity;
     try {
+      // 코드 기반 방 조회 우선
       roomEntity = await this.roomsService.findByCode(payload.room);
     } catch {
-      throw new WsException(`Room ${payload.room} not found`);
+      // 코드 조회 실패 시, 숫자 문자열이면 ID로 폴백
+      if (/^[0-9]+$/.test(payload.room)) {
+        roomEntity = await this.roomsService.findOne(parseInt(payload.room, 10));
+      } else {
+        throw new WsException(`Room ${payload.room} not found`);
+      }
     }
     client.join(payload.room);
 
@@ -139,7 +145,16 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     @MessageBody() payload: ChatSendDto,
   ) {
     const user = client.data.user;
-    const roomEntity = await this.roomsService.findByCode(payload.room);
+    let roomEntity;
+    try {
+      roomEntity = await this.roomsService.findByCode(payload.room);
+    } catch {
+      if (/^[0-9]+$/.test(payload.room)) {
+        roomEntity = await this.roomsService.findOne(parseInt(payload.room, 10));
+      } else {
+        throw new WsException(`Room ${payload.room} not found`);
+      }
+    }
     console.log(`[${EVENTS.CHAT_SEND}] from ${user.username} in roomCode=${roomEntity.code} (roomId=${roomEntity.id}): ${payload.text}`);
     const msg = await this.chatService.createMessage({ roomId: roomEntity.id, authorId: user.id, message: payload.text });
 
@@ -181,23 +196,49 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { room: string },
   ) {
-    const user = client.data.user;
-    const roomEntity = await this.roomsService.findByCode(payload.room);
-    // DB에 저장된 방 참여자 목록 조회
-    const participants = await this.roomsService.getRoomParticipants(roomEntity.id);
-    const draw = await this.chatService.createDraw(roomEntity.id, user.id, participants);
-    // 필요한 필드만 포함한 결과 payload 생성
-    const resultPayload = {
-      id: draw.id,
-      roomId: draw.roomId,
-      professorId: draw.userId,
-      winnerId: draw.winnerId,
-      participantsCount: draw.participants.length,
-      timestamp: draw.timestamp,
-    };
-    this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
-    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
-    return draw;
+    try {
+      const user = client.data.user;
+      console.log(`[${EVENTS.DRAW_START}] user=${user.username}, room=${payload.room}`);
+      console.log(`[${EVENTS.DRAW_START}] fetching participants from DB`);
+      let roomEntity;
+      try {
+        roomEntity = await this.roomsService.findByCode(payload.room);
+      } catch {
+        if (/^[0-9]+$/.test(payload.room)) {
+          roomEntity = await this.roomsService.findOne(parseInt(payload.room, 10));
+        } else {
+          throw new WsException(`Room ${payload.room} not found`);
+        }
+      }
+      // DB에 저장된 방 참여자 목록 조회
+      const participants = await this.roomsService.getRoomParticipants(roomEntity.id);
+      console.log(`[${EVENTS.DRAW_START}] participants:`, participants);
+      console.log(`[${EVENTS.DRAW_START}] participant count:`, participants.length);
+      console.log(`[${EVENTS.DRAW_START}] calling ChatService.createDraw`);
+      const draw = await this.chatService.createDraw(roomEntity.id, user.id, participants);
+      console.log(`[${EVENTS.DRAW_START}] createDraw result:`, draw);
+      // 우승자 username 조회
+      const winner = draw.participants.find(p => p.userId === draw.winnerId);
+      const winnerUsername = winner ? winner.username : null;
+      const resultPayload = {
+        id: draw.id,
+        roomId: draw.roomId,
+        professorId: draw.userId,
+        winnerId: draw.winnerId,
+        winnerUsername,
+        participantsCount: draw.participants.length,
+        timestamp: draw.timestamp,
+      };
+      console.log(`[${EVENTS.DRAW_RESULT}] broadcasting:`, resultPayload);
+      // 교사 네임스페이스 브로드캐스트
+      this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
+      // 학생 네임스페이스 브로드캐스트
+      (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
+      return draw;
+    } catch (err) {
+      console.error(`[${EVENTS.DRAW_START}] error:`, err);
+      throw new WsException(err.message || 'Draw error');
+    }
   }
 
   @SubscribeMessage(EVENTS.OXQUIZ_CREATE)
@@ -206,22 +247,41 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { room: string },
   ) {
-    const user = client.data.user;
-    const roomEntity = await this.roomsService.findByCode(payload.room);
-    const ox = await this.chatService.createOxQuiz(roomEntity.id, user.id);
-    // O/X 응답 개수 집계
-    const oCount = ox.answers.filter(a => a.answer === 'O').length;
-    const xCount = ox.answers.filter(a => a.answer === 'X').length;
-    const created = {
-      id: ox.id,
-      roomId: ox.roomId,
-      professorId: ox.userId,
-      oCount,
-      xCount,
-    };
-    this.server.to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
-    (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
-    return ox;
+    try {
+      const user = client.data.user;
+      console.log(`[${EVENTS.OXQUIZ_CREATE}] user=${user.username}, room=${payload.room}`);
+      console.log(`[${EVENTS.OXQUIZ_CREATE}] calling ChatService.createOxQuiz`);
+      let roomEntity;
+      try {
+        roomEntity = await this.roomsService.findByCode(payload.room);
+      } catch {
+        if (/^[0-9]+$/.test(payload.room)) {
+          roomEntity = await this.roomsService.findOne(parseInt(payload.room, 10));
+        } else {
+          throw new WsException(`Room ${payload.room} not found`);
+        }
+      }
+      const ox = await this.chatService.createOxQuiz(roomEntity.id, user.id);
+      console.log(`[${EVENTS.OXQUIZ_CREATE}] createOxQuiz result:`, ox);
+      // O/X 응답 개수 집계
+      const oCount = ox.answers.filter(a => a.answer === 'O').length;
+      const xCount = ox.answers.filter(a => a.answer === 'X').length;
+      console.log(`[${EVENTS.OXQUIZ_CREATED}] oCount=${oCount}, xCount=${xCount}`);
+      const created = {
+        id: ox.id,
+        roomId: ox.roomId,
+        professorId: ox.userId,
+        oCount,
+        xCount,
+      };
+      console.log(`[${EVENTS.OXQUIZ_CREATED}] broadcasting:`, created);
+      this.server.to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
+      (this.server as any).server.of('/students').to(payload.room).emit(EVENTS.OXQUIZ_CREATED, created);
+      return ox;
+    } catch (err) {
+      console.error(`[${EVENTS.OXQUIZ_CREATE}] error:`, err);
+      throw new WsException(err.message || 'OxQuiz error');
+    }
   }
 
   @SubscribeMessage(EVENTS.CHECK_CREATE)
@@ -234,7 +294,16 @@ export class TeachersGateway implements OnGatewayConnection, OnGatewayDisconnect
     console.log(`[${EVENTS.CHECK_CREATE}] payload.room=${payload.room}`);
     console.log('[handleCreateCheck] client.rooms=', Array.from(client.rooms));
     const user = client.data.user;
-    const roomEntity = await this.roomsService.findByCode(payload.room);
+    let roomEntity;
+    try {
+      roomEntity = await this.roomsService.findByCode(payload.room);
+    } catch {
+      if (/^[0-9]+$/.test(payload.room)) {
+        roomEntity = await this.roomsService.findOne(parseInt(payload.room, 10));
+      } else {
+        throw new WsException(`Room ${payload.room} not found`);
+      }
+    }
     const chk = await this.chatService.createCheck(roomEntity.id, user.id);
     console.log(`[${EVENTS.CHECK_CREATE}] created check=`, chk);
     console.log(`[${EVENTS.CHECK_CREATE}] broadcasting to teachers.room ${payload.room}`);

@@ -49,20 +49,22 @@ export class ChatService {
     };
   }
 
-  /** 제비뽑기 생성 (랜덤 승자 선정) */
+  /** 제비뽑기 생성 (교수 제외, 학생만 랜덤 승자 선정) */
   async createDraw(
     roomId: number,
     userId: number,
     participants: { userId: number; username: string; role: string }[],
   ): Promise<Draw> {
-    // 랜덤으로 승자 선정
+    // 교수 제외: 학생만 필터링
+    const studentParticipants = participants.filter(p => p.role === 'student');
+    // 랜덤으로 승자 선정 (학생만)
     let winnerId: number | undefined;
-    if (participants && participants.length > 0) {
-      const idx = Math.floor(Math.random() * participants.length);
-      winnerId = participants[idx].userId;
+    if (studentParticipants.length > 0) {
+      const idx = Math.floor(Math.random() * studentParticipants.length);
+      winnerId = studentParticipants[idx].userId;
     }
-    // DeepPartial로 타입 선언 후 저장
-    const drawData: DeepPartial<Draw> = { roomId, userId, participants, winnerId };
+    // DeepPartial로 타입 선언 후 저장 (참가자 목록도 학생만 저장)
+    const drawData: DeepPartial<Draw> = { roomId, userId, participants: studentParticipants, winnerId };
     const draw = await this.drawRepository.save(drawData);
     return draw;
   }
@@ -152,7 +154,7 @@ export class ChatService {
     const [msgs, oxes, checks, draws] = await Promise.all([
       this.messageRepository.find({ where: { roomId: rid }, relations: ['author'], order: { timestamp: 'ASC' } }),
       this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user', 'answers', 'answers.user'] }),
-      this.checkRepository.find({ where: { roomId: rid }, relations: ['professor'] }),
+      this.checkRepository.find({ where: { roomId: rid }, relations: ['professor', 'users'] }),
       this.drawRepository.find({ where: { roomId: rid } }),
     ]);
     const events: any[] = [];
@@ -193,19 +195,25 @@ export class ChatService {
         isChecked: c.isChecked,
         checkCount: c.checkCount,
         role: c.professor.role,
+        users: c.users.map(u => ({ userId: u.id, username: u.username, role: u.role })),
       })),
     );
     // 제비뽑기 이벤트
     events.push(
-      ...draws.map(d => ({
-        type: 'draw' as const,
-        timestamp: d.timestamp,
-        id: d.id,
-        participants: d.participants,
-        participantsCount: d.participants.length,
-        professorId: d.userId,
-        winnerId: d.winnerId,
-      })),
+      ...draws.map(d => {
+        // 우승자 username 조회
+        const winner = d.participants.find(p => p.userId === d.winnerId);
+        return {
+          type: 'draw' as const,
+          timestamp: d.timestamp,
+          id: d.id,
+          participants: d.participants,
+          participantsCount: d.participants.length,
+          professorId: d.userId,
+          winnerId: d.winnerId,
+          winnerUsername: winner ? winner.username : null,
+        };
+      }),
     );
     // 타임스탬프 기준 정렬
     events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());

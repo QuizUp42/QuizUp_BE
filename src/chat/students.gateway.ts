@@ -137,11 +137,18 @@ export class StudentsGateway implements OnGatewayConnection, OnGatewayDisconnect
       const history = await this.chatService.getChatHistory(roomEntity.id);
       // myAnswer 포함하여 이벤트 재구성
       const enriched = history.map((evt: any) => {
+        // OX퀴즈: 나의 선택 표시
         if (evt.type === 'oxquiz') {
           const answers = evt.answers as { userId: number; answer: 'O' | 'X' }[];
-          const me = answers.find((a: { userId: number; answer: 'O' | 'X' }) => a.userId === client.data.user.id);
+          const me = answers.find(a => a.userId === client.data.user.id);
           const myAnswer = me ? me.answer : null;
           return { ...evt, myAnswer };
+        }
+        // 체크: 나의 토글 상태 표시
+        if (evt.type === 'check') {
+          const users = evt.users as { userId: number; username: string; role: string }[];
+          const myChecked = users.some(u => u.userId === client.data.user.id);
+          return { ...evt, myChecked };
         }
         return evt;
       });

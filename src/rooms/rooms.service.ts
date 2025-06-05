@@ -66,7 +66,10 @@ export class RoomsService {
     roomParam: string | number,
   ): Promise<Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }>> {
     let id: number;
-    if (typeof roomParam === 'string' && /^[0-9]+$/.test(roomParam)) {
+    if (typeof roomParam === 'number') {
+      id = roomParam;
+      await this.findOne(id);
+    } else if (typeof roomParam === 'string' && /^[0-9]+$/.test(roomParam)) {
       id = parseInt(roomParam, 10);
       await this.findOne(id);
     } else {
@@ -132,8 +135,10 @@ export class RoomsService {
    */
   async getRoomParticipants(roomParam: string | number): Promise<{ userId: number; username: string; role: 'student' | 'professor'; }[]> {
     let id: number;
-    // roomParam 숫자 판별
-    if (typeof roomParam === 'string' && /^[0-9]+$/.test(roomParam)) {
+    if (typeof roomParam === 'number') {
+      id = roomParam;
+      await this.findOne(id);
+    } else if (typeof roomParam === 'string' && /^[0-9]+$/.test(roomParam)) {
       id = parseInt(roomParam, 10);
       await this.findOne(id);
     } else {
