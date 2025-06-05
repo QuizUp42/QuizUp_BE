@@ -7,6 +7,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { ChatService } from '../chat/chat.service';
 import { User } from '../auth/entities/user.entity';
 import { ProfessorProfile } from '../auth/entities/professor-profile.entity';
+import { StudentProfile } from '../auth/entities/student-profile.entity';
 
 @Injectable()
 export class RoomsService {
@@ -16,6 +17,8 @@ export class RoomsService {
     private readonly chatService: ChatService,
     @InjectRepository(ProfessorProfile)
     private readonly professorProfileRepository: Repository<ProfessorProfile>,
+    @InjectRepository(StudentProfile)
+    private readonly studentProfileRepository: Repository<StudentProfile>,
   ) {}
 
   async create(createRoomDto: CreateRoomDto): Promise<Room> {
@@ -165,5 +168,17 @@ export class RoomsService {
       }
     });
     return participants;
+  }
+
+  /** 학생 프로필을 방에 추가합니다. */
+  async addStudentToRoom(userId: number, roomId: number): Promise<void> {
+    const studentProfile = await this.studentProfileRepository.findOne({ where: { user: { id: userId } } });
+    if (!studentProfile) {
+      throw new Error('Student profile not found');
+    }
+    await this.roomsRepository.createQueryBuilder()
+      .relation(Room, 'students')
+      .of(roomId)
+      .add(studentProfile.id);
   }
 }

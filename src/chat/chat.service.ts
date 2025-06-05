@@ -64,7 +64,12 @@ export class ChatService {
       winnerId = studentParticipants[idx].userId;
     }
     // DeepPartial로 타입 선언 후 저장 (참가자 목록도 학생만 저장)
-    const drawData: DeepPartial<Draw> = { roomId, userId, participants: studentParticipants, winnerId };
+    const drawData: DeepPartial<Draw> = {
+      roomId,
+      userId,
+      participants: studentParticipants,
+      winnerId,
+    };
     const draw = await this.drawRepository.save(drawData);
     return draw;
   }

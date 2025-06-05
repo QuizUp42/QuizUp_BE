@@ -30,4 +30,7 @@ export class Draw {
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'winnerId' })
   winner: User;
+
+  @Column({ default: false })
+  isRelease: boolean
 } 
