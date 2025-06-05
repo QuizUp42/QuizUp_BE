@@ -11,8 +11,5 @@ export class RegisterDto {
   studentNo: string;
 
   @IsString()
-  username: string;
-
-  @IsString()
   password: string;
 } 

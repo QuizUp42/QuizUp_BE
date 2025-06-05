@@ -10,6 +10,7 @@ RUN npm install
 # 소스 복사 및 빌드
 COPY . .
 RUN npm run build
+RUN npm prune --production
 
 # Stage 2: Production 단계
 FROM node:18-alpine
@@ -24,7 +25,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 
-# 포트 설정 및 실행
+# 포트 설정 및 실행 (포트 3001 사용)
 ENV NODE_ENV=production
-EXPOSE 3000
+EXPOSE 3001
 CMD ["node", "dist/main.js"] 

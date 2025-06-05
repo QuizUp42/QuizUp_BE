@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { StudentProfile } from './entities/student-profile.entity';
 import { ProfessorProfile } from './entities/professor-profile.entity';
+import { Message } from '../chat/entities/message.entity';
 
 @Injectable()
 export class AuthService {
@@ -15,47 +16,43 @@ export class AuthService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(StudentProfile) private readonly studentProfileRepository: Repository<StudentProfile>,
     @InjectRepository(ProfessorProfile) private readonly professorProfileRepository: Repository<ProfessorProfile>,
+    @InjectRepository(Message) private readonly messageRepository: Repository<Message>,
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { role, studentNo, username, password } = loginDto;
-    // 프로필 조회
+    const { studentNo, password } = loginDto;
+
+    // 프로필 조회: 학생 먼저, 없으면 교수
     let profile: StudentProfile | ProfessorProfile | null;
-    if (role === 'student') {
-      profile = await this.studentProfileRepository.findOne({
-        where: { studentNo },
-        relations: ['user'],
-      });
+    let userRole: 'student' | 'professor';
+    profile = await this.studentProfileRepository.findOne({ where: { studentNo }, relations: ['user'] });
+    if (profile) {
+      userRole = 'student';
     } else {
-      profile = await this.professorProfileRepository.findOne({
-        where: { professorNo: studentNo },
-        relations: ['user'],
-      });
+      profile = await this.professorProfileRepository.findOne({ where: { professorNo: studentNo }, relations: ['user'] });
+      userRole = 'professor';
     }
     if (!profile) throw new UnauthorizedException('Invalid credentials');
     const user = profile.user;
+
     // 사용자명 및 비밀번호 검증
-    if (user.username !== username || !(await bcrypt.compare(password, user.password))) {
+    if (!(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
     // JWT 페이로드
-    const payload = { sub: user.id, username: user.username, role: user.role };
+    const payload = { sub: user.id, role: userRole };
     // 액세스 토큰(1시간) 및 리프레시 토큰(7일)
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, role: userRole };
   }
 
   async register(registerDto: import('./dto/register.dto').RegisterDto) {
-    const { name, role, studentNo, username, password } = registerDto;
-    // 기존 사용자명 중복 체크
-    if (await this.userRepository.findOne({ where: { username } })) {
-      throw new (require('@nestjs/common').BadRequestException)('Username already exists');
-    }
+    const { name, role, studentNo, password } = registerDto;
     // 비밀번호 해싱
     const hashed = await bcrypt.hash(password, 10);
     // 유저 생성
-    const user = this.userRepository.create({ name, username, password: hashed, role });
+    const user = this.userRepository.create({ name, password: hashed, role });
     const savedUser = await this.userRepository.save(user);
     // 프로필 생성
     if (role === 'student') {
@@ -66,7 +63,7 @@ export class AuthService {
       await this.professorProfileRepository.save(profile);
     }
     // 자동 로그인 토큰
-    const payload = { sub: savedUser.id, username: savedUser.username, role: savedUser.role };
+    const payload = { sub: savedUser.id, role: savedUser.role };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { accessToken, refreshToken };
@@ -103,9 +100,66 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token revoked');
     }
     const decoded = this.jwtService.verify(refreshToken) as any;
-    const payload = { sub: decoded.sub, username: decoded.username, role: decoded.role };
+    // DB에서 유저 존재 여부 검사
+    const user = await this.userRepository.findOneBy({ id: decoded.sub });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const payload = { sub: decoded.sub, role: decoded.role };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
     const newRefreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
     return { accessToken, refreshToken: newRefreshToken };
+  }
+
+  // DB에 유저 존재 여부를 확인하는 헬퍼 메서드
+  async findUserById(userId: number) {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user) throw new UnauthorizedException('User not found');
+    return user;
+  }
+
+  // 유저 계정 삭제: 역할에 따라 메시지 및 프로필/사용자 레코드를 제거합니다.
+  async deleteUser(userId: number): Promise<void> {
+    // 사용자 정보 조회
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user) return;
+
+    if (user.role === 'professor') {
+      // 교수님이 소속된 모든 방의 메시지를 삭제
+      const profProfile = await this.professorProfileRepository.findOne({ where: { user: { id: userId } }, relations: ['rooms'] });
+      const roomIds = profProfile?.rooms.map(r => r.id) || [];
+      if (roomIds.length > 0) {
+        await this.messageRepository.createQueryBuilder()
+          .delete()
+          .from(Message)
+          .where('roomId IN (:...roomIds)', { roomIds })
+          .execute();
+      }
+    } else {
+      // 학생이 작성한 메시지만 삭제
+      await this.messageRepository.delete({ authorId: userId });
+    }
+
+    // 학생 프로필 삭제
+    const studentProfile = await this.studentProfileRepository.findOne({ where: { user: { id: userId } } });
+    if (studentProfile) {
+      await this.studentProfileRepository.remove(studentProfile);
+    }
+    // 교수 프로필 삭제
+    const professorProfile = await this.professorProfileRepository.findOne({ where: { user: { id: userId } } });
+    if (professorProfile) {
+      await this.professorProfileRepository.remove(professorProfile);
+    }
+    // 유저 삭제
+    await this.userRepository.delete(userId);
+  }
+
+  // 유저네임 업데이트 메서드
+  async updateUsername(userId: number, username: string): Promise<void> {
+    // 중복 확인
+    if (await this.userRepository.findOne({ where: { username } })) {
+      throw new BadRequestException('Username already exists');
+    }
+    await this.userRepository.update(userId, { username });
   }
 }

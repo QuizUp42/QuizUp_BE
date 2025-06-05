@@ -7,10 +7,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { StudentProfile } from './entities/student-profile.entity';
 import { ProfessorProfile } from './entities/professor-profile.entity';
+import { Message } from '../chat/entities/message.entity';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, StudentProfile, ProfessorProfile]),
+    TypeOrmModule.forFeature([User, StudentProfile, ProfessorProfile, Message]),
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -22,7 +25,7 @@ import { ProfessorProfile } from './entities/professor-profile.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  providers: [AuthService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, JwtModule],
 })
 export class AuthModule {}

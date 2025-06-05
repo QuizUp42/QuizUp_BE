@@ -33,11 +33,11 @@ services:
       DB_NAME: ${DB_NAME}
       TZ: Asia/Seoul
     ports:
-      - '3001:3000'
+      - '3001:3001'
     volumes:
       - .:/app
       - /etc/localtime:/etc/localtime:ro
-    command: npm run start:dev
+    command: npm run start:dev:devtools
     depends_on:
       db:
         condition: service_healthy
