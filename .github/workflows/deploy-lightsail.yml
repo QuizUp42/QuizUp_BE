@@ -60,7 +60,7 @@ jobs:
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}  # 시크릿에 저장된 개인 키 전체 텍스트 :contentReference[oaicite:17]{index=17}
           port: 22
           script: |
-            cd $LIGHTSAIL_PROJECT_PATH
+            cd $LIGHTSAIL_PROJECT_PATH/quizup/QuizUp_BE
             echo "Current directory: $(pwd)"
             ls -la
 
