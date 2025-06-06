@@ -15,8 +15,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      IMAGE_OWNER: ${{ github.repository_owner }}
-      IMAGE_NAME: ${{ github.repository }}
+      IMAGE_OWNER: quizup42
+      IMAGE_NAME: quiz-platform
 
     steps:
       - name: Checkout code
@@ -103,11 +103,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lowercase owner and repository name
-        run: |
-          echo "IMAGE_OWNER=$(echo $GITHUB_REPOSITORY_OWNER | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-          echo "IMAGE_NAME=$(echo $GITHUB_REPOSITORY | cut -d '/' -f2 | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4

@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 env:
   GHCR_REGISTRY: ghcr.io
@@ -58,7 +58,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: 22
-          source: "docker-compose.prod.yml"
+          source: "./docker-compose.prod.yml"
           target: "/home/ubuntu/quizup/QuizUp_BE"
           overwrite: true
 
@@ -70,7 +70,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: 22
-          source: ".env.production"
+          source: "./.env.production"
           target: "/home/ubuntu/quizup/QuizUp_BE"
           overwrite: true
 
