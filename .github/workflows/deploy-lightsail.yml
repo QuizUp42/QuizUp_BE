@@ -40,7 +40,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: nestjs-app/Dockerfile
+          file: Dockerfile
           push: true
           tags: |
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
