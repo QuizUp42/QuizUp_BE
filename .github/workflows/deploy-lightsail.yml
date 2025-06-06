@@ -59,7 +59,8 @@ jobs:
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: 22
           source: "docker-compose.prod.yml"
-          target: "/home/ubuntu/quizup/QuizUp_BE/docker-compose.prod.yml"
+          target: "/home/ubuntu/quizup/QuizUp_BE"
+          overwrite: true
 
       # (6) SSH를 통한 Lightsail 배포 (key 옵션 사용)
       - name: Deploy via SSH to Lightsail
