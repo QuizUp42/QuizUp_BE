@@ -46,15 +46,20 @@ jobs:
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.DEPLOY_TAG }}
 
+      - name: Save SSH key
+        run: |
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > nam9.pem
+          chmod 600 nam9.pem
+
       - name: Deploy via SSH to Lightsail
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}   
+          host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}
           username: ubuntu
-          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}     
+          key_path: nam9.pem
           script: |
             cd $LIGHTSAIL_PROJECT_PATH
             # 서버 측 GHCR 로그인: GITHUB_TOKEN 대신 GHCR_PAT 사용 권장
             echo "${{ secrets.GHCR_PAT }}" | docker login $GHCR_REGISTRY -u ${{ github.actor }} --password-stdin
-            docker-compose pull
-            docker-compose up -d --build
+            docker compose pull
+            docker compose up -d --build
