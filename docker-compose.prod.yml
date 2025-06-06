@@ -4,10 +4,6 @@ services:
     restart: always
     env_file:
       - .env.production
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -25,10 +21,6 @@ services:
       - .env.production
     environment:
       DB_HOST: db
-      DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
       NODE_ENV: production
     ports:
       - '3000:3000'
@@ -44,10 +36,10 @@ services:
       - '443:443'
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - certs:/etc/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - app
 
 volumes:
   pgdata:
-  certs: 
+  # certs:  # 인증서는 호스트 /etc/letsencrypt를 바인드 마운트로 사용 
