@@ -6,4 +6,4 @@ export class ChatSendDto {
 
   @IsString()
   text: string;
-} 
+}

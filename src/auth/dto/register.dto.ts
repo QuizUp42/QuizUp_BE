@@ -12,4 +12,4 @@ export class RegisterDto {
 
   @IsString()
   password: string;
-} 
+}

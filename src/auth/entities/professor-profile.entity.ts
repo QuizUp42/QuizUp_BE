@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, ManyToMany, JoinTable, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  ManyToMany,
+  JoinTable,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Room } from '../../rooms/entities/room.entity';
 
@@ -10,11 +18,11 @@ export class ProfessorProfile {
   @Column({ unique: true })
   professorNo: string;
 
-  @OneToOne(() => User, user => user.professorProfile)
+  @OneToOne(() => User, (user) => user.professorProfile)
   @JoinColumn()
   user: User;
 
-  @ManyToMany(() => Room, room => room.professors)
+  @ManyToMany(() => Room, (room) => room.professors)
   @JoinTable({ name: 'professor_rooms' })
   rooms: Room[];
-} 
+}

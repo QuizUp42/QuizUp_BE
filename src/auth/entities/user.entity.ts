@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  OneToMany,
+} from 'typeorm';
 import { StudentProfile } from './student-profile.entity';
 import { ProfessorProfile } from './professor-profile.entity';
 import { Message } from '../../chat/entities/message.entity';
@@ -13,7 +21,7 @@ export class User {
 
   @Column()
   name: string;
-  
+
   @Column({ unique: true, nullable: true })
   username: string;
 
@@ -35,9 +43,9 @@ export class User {
   @OneToOne(() => ProfessorProfile, (profile: ProfessorProfile) => profile.user)
   professorProfile: ProfessorProfile;
 
-  @OneToMany(() => Message, message => message.author)
+  @OneToMany(() => Message, (message) => message.author)
   messages: Message[];
 
-  @OneToMany(() => Check, check => check.professor)
+  @OneToMany(() => Check, (check) => check.professor)
   checks: Check[];
-} 
+}

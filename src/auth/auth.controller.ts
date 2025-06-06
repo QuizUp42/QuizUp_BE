@@ -1,4 +1,14 @@
-import { Controller, Post, Put, Body, Res, Req, UnauthorizedException, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Put,
+  Body,
+  Res,
+  Req,
+  UnauthorizedException,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -29,7 +39,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Body() loginDto: LoginDto,
   ) {
-    const { accessToken, refreshToken, role } = await this.authService.login(loginDto);
+    const { accessToken, refreshToken, role } =
+      await this.authService.login(loginDto);
     // Refresh Token을 HTTP-only 쿠키에 저장
     res.cookie('refreshToken', refreshToken, getCookieOptions());
 
@@ -43,7 +54,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Body() registerDto: RegisterDto,
   ) {
-    const { accessToken, refreshToken } = await this.authService.register(registerDto);
+    const { accessToken, refreshToken } =
+      await this.authService.register(registerDto);
     // Refresh Token을 HTTP-only 쿠키에 저장
     res.cookie('refreshToken', refreshToken, getCookieOptions());
 
@@ -55,10 +67,7 @@ export class AuthController {
    * 로그아웃: 쿠키에서 Refresh Token 삭제 및 블랙리스트 처리
    */
   @Post('logout')
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = req.cookies['refreshToken'];
     if (!token) {
       throw new UnauthorizedException('No refresh token');
@@ -82,7 +91,8 @@ export class AuthController {
     if (!token) {
       throw new UnauthorizedException('No refresh token');
     }
-    const { accessToken, refreshToken: newRefreshToken } = await this.authService.refresh(token);
+    const { accessToken, refreshToken: newRefreshToken } =
+      await this.authService.refresh(token);
 
     // 새로운 Refresh Token으로 쿠키 갱신
     res.cookie('refreshToken', newRefreshToken, getCookieOptions());

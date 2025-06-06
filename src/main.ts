@@ -20,7 +20,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    snapshot : true
+    snapshot: true,
   });
   // Socket.IO 어댑터 등록 (socket.io 서버 사용)
   app.useWebSocketAdapter(new IoAdapter(app));
@@ -30,16 +30,16 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
-  
-  // CORS 설정: 요청 출처를 동적으로 허용하고 쿠키를 포함한 인증 정보를 전달
+
+  // CORS 설정: 모든 origin 허용 (임시)
   app.enableCors({
     origin: true,
     credentials: true,
-    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization'],
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     optionsSuccessStatus: 204,
   });
 
-  await app.listen(process.env.PORT ?? 3001, '0.0.0.0');
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();

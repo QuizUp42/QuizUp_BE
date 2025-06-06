@@ -28,7 +28,13 @@ export class ChatService {
     roomId: number;
     authorId: number;
     message: string;
-  }): Promise<{ id: number; message: string; username: string; role: string; timestamp: Date }> {
+  }): Promise<{
+    id: number;
+    message: string;
+    username: string;
+    role: string;
+    timestamp: Date;
+  }> {
     // 메시지 저장
     const saved = await this.messageRepository.save({
       roomId: data.roomId,
@@ -56,7 +62,9 @@ export class ChatService {
     participants: { userId: number; username: string; role: string }[],
   ): Promise<Draw> {
     // 교수 제외: 학생만 필터링
-    const studentParticipants = participants.filter(p => p.role === 'student');
+    const studentParticipants = participants.filter(
+      (p) => p.role === 'student',
+    );
     // 랜덤으로 승자 선정 (학생만)
     let winnerId: number | undefined;
     if (studentParticipants.length > 0) {
@@ -94,7 +102,9 @@ export class ChatService {
       await this.oxAnswerRepository.delete({ quizId, userId });
     } else {
       // 기존 답변 조회
-      let oxAnswer = await this.oxAnswerRepository.findOne({ where: { quizId, userId } });
+      let oxAnswer = await this.oxAnswerRepository.findOne({
+        where: { quizId, userId },
+      });
       if (oxAnswer) {
         oxAnswer.answer = answer;
       } else {
@@ -110,10 +120,7 @@ export class ChatService {
   }
 
   /** 교수 전용: 체크리스트 항목 생성 */
-  async createCheck(
-    roomId: number,
-    professorId: number,
-  ): Promise<Check> {
+  async createCheck(roomId: number, professorId: number): Promise<Check> {
     return this.checkRepository.save({ roomId, professorId });
   }
 
@@ -135,14 +142,14 @@ export class ChatService {
       relations: ['users'],
     });
     // 학생별 사용자 배열 업데이트
-    const existing = chk.users.find(u => u.id === userId);
+    const existing = chk.users.find((u) => u.id === userId);
     if (isChecked) {
       if (!existing) {
         const user = { id: userId } as any;
         chk.users.push(user);
       }
     } else {
-      chk.users = chk.users.filter(u => u.id !== userId);
+      chk.users = chk.users.filter((u) => u.id !== userId);
     }
     // 현재 사용자의 체크 상태 저장 (isChecked 컬럼 업데이트)
     chk.isChecked = isChecked;
@@ -152,14 +159,22 @@ export class ChatService {
   }
 
   /** 통합 채팅 히스토리 조회: 메시지, OX퀴즈, 체크 이벤트를 하나의 타임라인으로 반환 */
-  async getChatHistory(
-    roomId: string | number,
-  ): Promise<any[]> {
+  async getChatHistory(roomId: string | number): Promise<any[]> {
     const rid = typeof roomId === 'string' ? parseInt(roomId, 10) : roomId;
     const [msgs, oxes, checks, draws] = await Promise.all([
-      this.messageRepository.find({ where: { roomId: rid }, relations: ['author'], order: { timestamp: 'ASC' } }),
-      this.oxQuizRepository.find({ where: { roomId: rid }, relations: ['user', 'answers', 'answers.user'] }),
-      this.checkRepository.find({ where: { roomId: rid }, relations: ['professor', 'users'] }),
+      this.messageRepository.find({
+        where: { roomId: rid },
+        relations: ['author'],
+        order: { timestamp: 'ASC' },
+      }),
+      this.oxQuizRepository.find({
+        where: { roomId: rid },
+        relations: ['user', 'answers', 'answers.user'],
+      }),
+      this.checkRepository.find({
+        where: { roomId: rid },
+        relations: ['professor', 'users'],
+      }),
       this.drawRepository.find({ where: { roomId: rid } }),
     ]);
     const events: any[] = [];
@@ -168,18 +183,21 @@ export class ChatService {
       ...msgs.map((m) => ({
         type: 'chat' as const,
         timestamp: m.timestamp,
-       id: m.id, 
-       message: m.message, 
-       username: m.author.username,
-        role: m.author.role ,
+        id: m.id,
+        message: m.message,
+        username: m.author.username,
+        role: m.author.role,
       })),
     );
     // OX퀴즈 이벤트 (role 포함) - payload 제거
     events.push(
       ...oxes.map((o) => {
-        const answers = o.answers.map(a => ({ userId: a.user.id, answer: a.answer }));
-        const oCount = answers.filter(a => a.answer === 'O').length;
-        const xCount = answers.filter(a => a.answer === 'X').length;
+        const answers = o.answers.map((a) => ({
+          userId: a.user.id,
+          answer: a.answer,
+        }));
+        const oCount = answers.filter((a) => a.answer === 'O').length;
+        const xCount = answers.filter((a) => a.answer === 'X').length;
         return {
           type: 'oxquiz' as const,
           timestamp: o.timestamp,
@@ -200,14 +218,18 @@ export class ChatService {
         isChecked: c.isChecked,
         checkCount: c.checkCount,
         role: c.professor.role,
-        users: c.users.map(u => ({ userId: u.id, username: u.username, role: u.role })),
+        users: c.users.map((u) => ({
+          userId: u.id,
+          username: u.username,
+          role: u.role,
+        })),
       })),
     );
     // 제비뽑기 이벤트
     events.push(
-      ...draws.map(d => {
+      ...draws.map((d) => {
         // 우승자 username 조회
-        const winner = d.participants.find(p => p.userId === d.winnerId);
+        const winner = d.participants.find((p) => p.userId === d.winnerId);
         return {
           type: 'draw' as const,
           timestamp: d.timestamp,

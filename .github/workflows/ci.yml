@@ -1,0 +1,120 @@
+name: CI – Build & Push Docker Image
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  checks: write
+  packages: write
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_OWNER: ${{ github.repository_owner }}
+      IMAGE_NAME: ${{ github.repository }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test -- --coverage --testPathIgnorePatterns test/ --passWithNoTests
+
+      - name: Run tests (JSON report)
+        id: run_tests
+        run: |
+          npm test -- --ci --json --outputFile=test-results.json --testPathIgnorePatterns test/ --passWithNoTests
+
+      - name: Extract test stats
+        id: extract_stats
+        run: |
+          TOTAL=$(jq '.numTotalTests' test-results.json)
+          PASSED=$(jq '.numPassedTests' test-results.json)
+          FAILED=$(jq '.numFailedTests' test-results.json)
+          SKIPPED=$(jq '.numPendingTests' test-results.json)
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          echo "TOTAL=$TOTAL" >> $GITHUB_ENV
+          echo "PASSED=$PASSED" >> $GITHUB_ENV
+          echo "FAILED=$FAILED" >> $GITHUB_ENV
+          echo "SKIPPED=$SKIPPED" >> $GITHUB_ENV
+
+      - name: Comment Test Results on PR
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🧪 Test Results
+            | 총 테스트 | 성공 | 실패 | 스킵 |
+            |:---------:|:----:|:----:|:----:|
+            | ${{ steps.extract_stats.outputs.total }} | ${{ steps.extract_stats.outputs.passed }} | ${{ steps.extract_stats.outputs.failed }} | ${{ steps.extract_stats.outputs.skipped }} |
+
+      - name: Post Test Results Check Run
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const total = process.env.TOTAL;
+            const passed = process.env.PASSED;
+            const failed = process.env.FAILED;
+            const skipped = process.env.SKIPPED;
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Test Results',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: failed === '0' ? 'success' : 'failure',
+              output: {
+                title: 'Test Results',
+                summary: `${total} tests   ✅ ${passed}   ❌ ${failed}   ⏭️ ${skipped}`
+              }
+            });
+
+      - name: Build project
+        run: npm run build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase owner and repository name
+        run: |
+          echo "IMAGE_OWNER=$(echo $GITHUB_REPOSITORY_OWNER | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "IMAGE_NAME=$(echo $GITHUB_REPOSITORY | cut -d '/' -f2 | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

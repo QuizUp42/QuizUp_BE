@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth.service';
 import * as cookie from 'cookie';
@@ -32,14 +37,17 @@ export class WsJwtAuthGuard implements CanActivate {
 
     // 3. Authorization 헤더 (Bearer)
     if (!token && client.handshake.headers.authorization) {
-      const parts = (client.handshake.headers.authorization as string).split(' ');
+      const parts = (client.handshake.headers.authorization as string).split(
+        ' ',
+      );
       token = parts.length > 1 ? parts[1] : parts[0];
     }
 
     // 4. Cookie 헤더
     if (!token && client.handshake.headers.cookie) {
       const cookies = cookie.parse(client.handshake.headers.cookie as string);
-      token = cookies['accessToken'] || cookies['refreshToken'] || cookies['token'];
+      token =
+        cookies['accessToken'] || cookies['refreshToken'] || cookies['token'];
     }
 
     if (!token) {

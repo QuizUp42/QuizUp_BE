@@ -11,6 +11,7 @@ import { AppController } from './app.controller';
 import { MeController } from './me/me.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { S3Module } from './aws/s3.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { ChatModule } from './chat/chat.module';
 import { QuizModule } from './quiz/quiz.module';
@@ -18,7 +19,11 @@ import { RankingModule } from './ranking/ranking.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath:
+        process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -36,6 +41,7 @@ import { RankingModule } from './ranking/ranking.module';
       }),
     }),
     AuthModule,
+    S3Module,
     RoomsModule,
     ChatModule,
     QuizModule,

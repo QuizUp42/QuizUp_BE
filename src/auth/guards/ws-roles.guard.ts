@@ -13,4 +13,4 @@ export class WsRolesGuard implements CanActivate {
     if (!user || !user.role) return false;
     return roles.includes(user.role);
   }
-} 
+}

@@ -67,7 +67,9 @@ export class RoomsService {
    */
   async getRoomMessages(
     roomParam: string | number,
-  ): Promise<Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }>> {
+  ): Promise<
+    Array<{ type: 'chat' | 'oxquiz' | 'check'; timestamp: Date; payload: any }>
+  > {
     let id: number;
     if (typeof roomParam === 'number') {
       id = roomParam;
@@ -88,23 +90,40 @@ export class RoomsService {
   async getUserRooms(
     userId: number,
     role: 'student' | 'professor',
-  ): Promise<{ id: number; code: string; name: string; participantCount: number; professorName: string | null; }[]> {
+  ): Promise<
+    {
+      id: number;
+      code: string;
+      name: string;
+      participantCount: number;
+      professorName: string | null;
+    }[]
+  > {
     // 방 조회 시 학생/교수 관계와 user loading
-    const qb = this.roomsRepository.createQueryBuilder('room')
+    const qb = this.roomsRepository
+      .createQueryBuilder('room')
       .leftJoinAndSelect('room.students', 'student')
       .leftJoinAndSelect('student.user', 'studentUser')
       .leftJoinAndSelect('room.professors', 'professor')
       .leftJoinAndSelect('professor.user', 'professorUser');
     if (role === 'student') {
-      qb.innerJoin('room.students', 'studentFilter')
-        .innerJoin('studentFilter.user', 'stuUser', 'stuUser.id = :userId', { userId });
+      qb.innerJoin('room.students', 'studentFilter').innerJoin(
+        'studentFilter.user',
+        'stuUser',
+        'stuUser.id = :userId',
+        { userId },
+      );
     } else {
-      qb.innerJoin('room.professors', 'profFilter')
-        .innerJoin('profFilter.user', 'profUser', 'profUser.id = :userId', { userId });
+      qb.innerJoin('room.professors', 'profFilter').innerJoin(
+        'profFilter.user',
+        'profUser',
+        'profUser.id = :userId',
+        { userId },
+      );
     }
     const rooms = await qb.getMany();
     // summary DTO 생성
-    return rooms.map(room => {
+    return rooms.map((room) => {
       const profName = room.professors[0]?.user.username || null;
       const count = room.students.length + room.professors.length;
       return {
@@ -123,11 +142,14 @@ export class RoomsService {
 
   // 방 생성 후 교수 프로필에 방 추가
   async addProfessorToRoom(userId: number, roomId: number): Promise<void> {
-    const profProfile = await this.professorProfileRepository.findOne({ where: { user: { id: userId } } });
+    const profProfile = await this.professorProfileRepository.findOne({
+      where: { user: { id: userId } },
+    });
     if (!profProfile) {
       throw new Error('Professor profile not found');
     }
-    await this.roomsRepository.createQueryBuilder()
+    await this.roomsRepository
+      .createQueryBuilder()
       .relation(Room, 'professors')
       .of(roomId)
       .add(profProfile.id);
@@ -136,7 +158,11 @@ export class RoomsService {
   /**
    * 방에 참여 및 생성한 모든 사용자 목록을 반환합니다.
    */
-  async getRoomParticipants(roomParam: string | number): Promise<{ userId: number; username: string; role: 'student' | 'professor'; }[]> {
+  async getRoomParticipants(
+    roomParam: string | number,
+  ): Promise<
+    { userId: number; username: string; role: 'student' | 'professor' }[]
+  > {
     let id: number;
     if (typeof roomParam === 'number') {
       id = roomParam;
@@ -156,15 +182,27 @@ export class RoomsService {
     if (!roomWithRelations) {
       throw new NotFoundException(`Room with id ${id} not found`);
     }
-    const participants: { userId: number; username: string; role: 'student' | 'professor'; }[] = [];
-    roomWithRelations.students.forEach(sp => {
+    const participants: {
+      userId: number;
+      username: string;
+      role: 'student' | 'professor';
+    }[] = [];
+    roomWithRelations.students.forEach((sp) => {
       if (sp.user) {
-        participants.push({ userId: sp.user.id, username: sp.user.username, role: 'student' });
+        participants.push({
+          userId: sp.user.id,
+          username: sp.user.username,
+          role: 'student',
+        });
       }
     });
-    roomWithRelations.professors.forEach(pp => {
+    roomWithRelations.professors.forEach((pp) => {
       if (pp.user) {
-        participants.push({ userId: pp.user.id, username: pp.user.username, role: 'professor' });
+        participants.push({
+          userId: pp.user.id,
+          username: pp.user.username,
+          role: 'professor',
+        });
       }
     });
     return participants;
@@ -172,11 +210,14 @@ export class RoomsService {
 
   /** 학생 프로필을 방에 추가합니다. */
   async addStudentToRoom(userId: number, roomId: number): Promise<void> {
-    const studentProfile = await this.studentProfileRepository.findOne({ where: { user: { id: userId } } });
+    const studentProfile = await this.studentProfileRepository.findOne({
+      where: { user: { id: userId } },
+    });
     if (!studentProfile) {
       throw new Error('Student profile not found');
     }
-    await this.roomsRepository.createQueryBuilder()
+    await this.roomsRepository
+      .createQueryBuilder()
       .relation(Room, 'students')
       .of(roomId)
       .add(studentProfile.id);
