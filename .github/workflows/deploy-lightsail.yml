@@ -61,7 +61,12 @@ jobs:
           port: 22
           script: |
             cd $LIGHTSAIL_PROJECT_PATH
-            # 서버 측 GHCR 로그인: GHCR_PAT 사용
+            echo "Current directory: $(pwd)"
+            ls -la
+
+            # (2) GHCR 로그인
             echo "${{ secrets.GHCR_PAT }}" | docker login ${{ env.GHCR_REGISTRY }} -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d --build
+
+            # (3) Compose 파일을 명시하여 Pull & Up
+            docker compose -f docker-compose.prod.yml --env-file .env.production pull
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
