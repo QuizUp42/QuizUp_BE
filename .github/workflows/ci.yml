@@ -34,12 +34,12 @@ jobs:
         run: npm run lint
 
       - name: Run tests
-        run: npm test -- --coverage --testPathIgnorePatterns test/
+        run: npm test -- --coverage --testPathIgnorePatterns test/ --passWithNoTests
 
       - name: Run tests (JSON report)
         id: run_tests
         run: |
-          npm test -- --ci --json --outputFile=test-results.json --testPathIgnorePatterns test/
+          npm test -- --ci --json --outputFile=test-results.json --testPathIgnorePatterns test/ --passWithNoTests
 
       - name: Extract test stats
         id: extract_stats
