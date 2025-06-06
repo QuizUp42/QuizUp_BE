@@ -13,4 +13,4 @@ export class MeController {
     const user = req.user! as any;
     return this.roomsService.getUserRooms(user.userId, user.role);
   }
-} 
+}

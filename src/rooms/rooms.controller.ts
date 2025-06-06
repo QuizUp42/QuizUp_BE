@@ -46,10 +46,7 @@ export class RoomsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('professor')
   @Post()
-  async create(
-    @Req() req: Request,
-    @Body() createRoomDto: CreateRoomDto,
-  ) {
+  async create(@Req() req: Request, @Body() createRoomDto: CreateRoomDto) {
     const room = await this.roomsService.create(createRoomDto);
     const user = req.user!;
     await this.roomsService.addProfessorToRoom(user.userId, room.id);

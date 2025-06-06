@@ -10,4 +10,4 @@ export class AnswerOxQuizDto {
   @IsIn(['O', 'X'])
   @IsOptional()
   answer?: 'O' | 'X';
-} 
+}

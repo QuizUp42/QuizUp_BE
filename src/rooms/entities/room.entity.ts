@@ -35,15 +35,15 @@ export class Room {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToMany(() => StudentProfile, profile => profile.rooms)
+  @ManyToMany(() => StudentProfile, (profile) => profile.rooms)
   students: StudentProfile[];
 
-  @ManyToMany(() => ProfessorProfile, profile => profile.rooms)
+  @ManyToMany(() => ProfessorProfile, (profile) => profile.rooms)
   professors: ProfessorProfile[];
 
-  @OneToMany(() => Message, message => message.room)
+  @OneToMany(() => Message, (message) => message.room)
   messages: Message[];
 
-  @OneToMany(() => Check, check => check.room)
+  @OneToMany(() => Check, (check) => check.room)
   checks: Check[];
 }

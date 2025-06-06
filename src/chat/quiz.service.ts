@@ -41,7 +41,14 @@ export class QuizService {
     isSubmit: boolean,
     userId: string,
   ): QuizEvent {
-    return this.createEvent({ roomId, quizId, quizName, quizCount, isSubmit, userId });
+    return this.createEvent({
+      roomId,
+      quizId,
+      quizName,
+      quizCount,
+      isSubmit,
+      userId,
+    });
   }
 
   /**
@@ -51,4 +58,4 @@ export class QuizService {
   getQuizEvents(roomId: string): QuizEvent[] {
     return this.getEvents(roomId);
   }
-} 
+}

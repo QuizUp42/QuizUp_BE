@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { OxQuiz } from './ox-quiz.entity';
 import { User } from '../../auth/entities/user.entity';
 
@@ -10,7 +18,7 @@ export class OxAnswer {
   @Column()
   @Index()
   quizId: number;
-  @ManyToOne(() => OxQuiz, quiz => quiz.answers, { onDelete: 'CASCADE' })
+  @ManyToOne(() => OxQuiz, (quiz) => quiz.answers, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'quizId' })
   quiz: OxQuiz;
 
@@ -26,4 +34,4 @@ export class OxAnswer {
 
   @CreateDateColumn()
   timestamp: Date;
-} 
+}

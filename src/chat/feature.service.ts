@@ -20,7 +20,7 @@ export class FeatureService {
   }
 
   getEvents(roomId: string): FeatureEvent[] {
-    return this.events.filter(e => e.roomId === roomId);
+    return this.events.filter((e) => e.roomId === roomId);
   }
 
   /**
@@ -36,7 +36,13 @@ export class FeatureService {
     newState: boolean,
     userId: string,
   ): FeatureEvent {
-    return this.createEvent({ roomId, featureId, type: 'check', newState, userId });
+    return this.createEvent({
+      roomId,
+      featureId,
+      type: 'check',
+      newState,
+      userId,
+    });
   }
 
   /**
@@ -44,6 +50,6 @@ export class FeatureService {
    * @param roomId - the room identifier
    */
   getCheckEvents(roomId: string): FeatureEvent[] {
-    return this.getEvents(roomId).filter(e => e.type === 'check');
+    return this.getEvents(roomId).filter((e) => e.type === 'check');
   }
-} 
+}

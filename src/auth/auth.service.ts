@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,9 +18,12 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    @InjectRepository(StudentProfile) private readonly studentProfileRepository: Repository<StudentProfile>,
-    @InjectRepository(ProfessorProfile) private readonly professorProfileRepository: Repository<ProfessorProfile>,
-    @InjectRepository(Message) private readonly messageRepository: Repository<Message>,
+    @InjectRepository(StudentProfile)
+    private readonly studentProfileRepository: Repository<StudentProfile>,
+    @InjectRepository(ProfessorProfile)
+    private readonly professorProfileRepository: Repository<ProfessorProfile>,
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -25,11 +32,17 @@ export class AuthService {
     // 프로필 조회: 학생 먼저, 없으면 교수
     let profile: StudentProfile | ProfessorProfile | null;
     let userRole: 'student' | 'professor';
-    profile = await this.studentProfileRepository.findOne({ where: { studentNo }, relations: ['user'] });
+    profile = await this.studentProfileRepository.findOne({
+      where: { studentNo },
+      relations: ['user'],
+    });
     if (profile) {
       userRole = 'student';
     } else {
-      profile = await this.professorProfileRepository.findOne({ where: { professorNo: studentNo }, relations: ['user'] });
+      profile = await this.professorProfileRepository.findOne({
+        where: { professorNo: studentNo },
+        relations: ['user'],
+      });
       userRole = 'professor';
     }
     if (!profile) throw new UnauthorizedException('Invalid credentials');
@@ -56,10 +69,16 @@ export class AuthService {
     const savedUser = await this.userRepository.save(user);
     // 프로필 생성
     if (role === 'student') {
-      const profile = this.studentProfileRepository.create({ studentNo, user: savedUser });
+      const profile = this.studentProfileRepository.create({
+        studentNo,
+        user: savedUser,
+      });
       await this.studentProfileRepository.save(profile);
     } else {
-      const profile = this.professorProfileRepository.create({ professorNo: studentNo, user: savedUser });
+      const profile = this.professorProfileRepository.create({
+        professorNo: studentNo,
+        user: savedUser,
+      });
       await this.professorProfileRepository.save(profile);
     }
     // 자동 로그인 토큰
@@ -99,7 +118,7 @@ export class AuthService {
     if (this.isRefreshBlacklisted(refreshToken)) {
       throw new UnauthorizedException('Refresh token revoked');
     }
-    const decoded = this.jwtService.verify(refreshToken) as any;
+    const decoded = this.jwtService.verify(refreshToken);
     // DB에서 유저 존재 여부 검사
     const user = await this.userRepository.findOneBy({ id: decoded.sub });
     if (!user) {
@@ -126,10 +145,14 @@ export class AuthService {
 
     if (user.role === 'professor') {
       // 교수님이 소속된 모든 방의 메시지를 삭제
-      const profProfile = await this.professorProfileRepository.findOne({ where: { user: { id: userId } }, relations: ['rooms'] });
-      const roomIds = profProfile?.rooms.map(r => r.id) || [];
+      const profProfile = await this.professorProfileRepository.findOne({
+        where: { user: { id: userId } },
+        relations: ['rooms'],
+      });
+      const roomIds = profProfile?.rooms.map((r) => r.id) || [];
       if (roomIds.length > 0) {
-        await this.messageRepository.createQueryBuilder()
+        await this.messageRepository
+          .createQueryBuilder()
           .delete()
           .from(Message)
           .where('roomId IN (:...roomIds)', { roomIds })
@@ -141,12 +164,16 @@ export class AuthService {
     }
 
     // 학생 프로필 삭제
-    const studentProfile = await this.studentProfileRepository.findOne({ where: { user: { id: userId } } });
+    const studentProfile = await this.studentProfileRepository.findOne({
+      where: { user: { id: userId } },
+    });
     if (studentProfile) {
       await this.studentProfileRepository.remove(studentProfile);
     }
     // 교수 프로필 삭제
-    const professorProfile = await this.professorProfileRepository.findOne({ where: { user: { id: userId } } });
+    const professorProfile = await this.professorProfileRepository.findOne({
+      where: { user: { id: userId } },
+    });
     if (professorProfile) {
       await this.professorProfileRepository.remove(professorProfile);
     }

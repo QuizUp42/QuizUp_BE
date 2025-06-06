@@ -39,10 +39,10 @@ export const EVENTS = {
   OXQUIZ_ANSWER: 'oxquiz:answer' as const,
   // 서버 → 클라이언트: OX 퀴즈 응답 결과 브로드캐스트
   OXQUIZ_ANSWERED: 'oxquiz:answered' as const,
-    // 클라이언트 → 서버: OX 퀴즈 생성 요청
+  // 클라이언트 → 서버: OX 퀴즈 생성 요청
   OXQUIZ_CREATE: 'oxquiz:create' as const,
-    // 서버 → 클라이언트: OX 퀴즈 생성 결과
+  // 서버 → 클라이언트: OX 퀴즈 생성 결과
   OXQUIZ_CREATED: 'oxquiz:created' as const,
   // 서버 → 클라이언트: 유저 퇴장 알림
   USER_LEFT: 'user:left' as const,
-}; 
+};

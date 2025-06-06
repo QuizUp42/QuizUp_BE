@@ -29,7 +29,7 @@ export class Check {
   @Column()
   @Index()
   professorId: number;
-  
+
   @ManyToOne(() => User, (user) => user.checks, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'professorId' })
   professor: User;

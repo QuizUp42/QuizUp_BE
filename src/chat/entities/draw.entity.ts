@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Room } from '../../rooms/entities/room.entity';
 import { User } from '../../auth/entities/user.entity';
 
@@ -32,5 +39,5 @@ export class Draw {
   winner: User;
 
   @Column({ default: false })
-  isRelease: boolean
-} 
+  isRelease: boolean;
+}
