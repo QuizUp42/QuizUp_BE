@@ -40,12 +40,12 @@ help:
 .PHONY: dev-up
 dev-up:
 	@echo "==> 🛠  개발 환경 빌드 및 실행 (Compose 파일: $(DEV_COMPOSE))"
-	@DOCKER_BUILDKIT=1 docker-compose -f $(DEV_COMPOSE) --env-file $(DEV_ENV_FILE) up -d --build
+	@DOCKER_BUILDKIT=1 docker compose -f $(DEV_COMPOSE) --env-file $(DEV_ENV_FILE) up -d --build
 
 .PHONY: dev-down
 dev-down:
 	@echo "==> 🛑 개발 환경 컨테이너 중지 및 네트워크/볼륨 정리"
-	@docker-compose -f $(DEV_COMPOSE) down --remove-orphans
+	@docker compose -f $(DEV_COMPOSE) down --remove-orphans
 
 .PHONY: dev-restart
 dev-restart: dev-down dev-up
@@ -53,7 +53,7 @@ dev-restart: dev-down dev-up
 .PHONY: dev-logs
 dev-logs:
 	@echo "==> 📜 개발 환경 전체 로그 출력"
-	@docker-compose -f $(DEV_COMPOSE) logs -f
+	@docker compose -f $(DEV_COMPOSE) logs -f
 
 # ─────────────────────────────────────────────────────────────────
 # 운영 환경 타겟
@@ -62,17 +62,17 @@ dev-logs:
 .PHONY: prod-pull
 prod-pull:
 	@echo "==> 📥 운영 환경 이미지 pull (Compose 파일: $(PROD_COMPOSE))"
-	@docker-compose -f $(PROD_COMPOSE) pull
+	@docker compose -f $(PROD_COMPOSE) pull
 
 .PHONY: prod-up
 prod-up:
 	@echo "==> 🚀 운영 환경 컨테이너 실행 (Compose 파일: $(PROD_COMPOSE))"
-	@docker-compose -f $(PROD_COMPOSE) up -d
+	@docker compose -f $(PROD_COMPOSE) up -d
 
 .PHONY: prod-down
 prod-down:
 	@echo "==> 🛑 운영 환경 컨테이너 중지 및 네트워크/볼륨 정리"
-	@docker-compose -f $(PROD_COMPOSE) down --remove-orphans
+	@docker compose -f $(PROD_COMPOSE) down --remove-orphans
 
 .PHONY: prod-restart
 prod-restart: prod-down prod-pull prod-up
@@ -80,7 +80,7 @@ prod-restart: prod-down prod-pull prod-up
 .PHONY: prod-logs
 prod-logs:
 	@echo "==> 📜 운영 환경 전체 로그 출력"
-	@docker-compose -f $(PROD_COMPOSE) logs -f
+	@docker compose -f $(PROD_COMPOSE) logs -f
 
 # ─────────────────────────────────────────────────────────────────
 # 기타: 시스템 정리

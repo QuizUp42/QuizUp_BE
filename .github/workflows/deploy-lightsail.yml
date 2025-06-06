@@ -1,20 +1,24 @@
 name: Deploy to Lightsail
+
 permissions:
   contents: read
-  packages: read
+  packages: write      # GHCR 푸시를 위해 write 권한 필요
+
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production  # (1) production 환경 시크릿이 등록되어 있어야 함
     env:
       LIGHTSAIL_PROJECT_PATH: ${{ secrets.LIGHTSAIL_PROJECT_PATH }}
       GHCR_REGISTRY: ghcr.io
       IMAGE_OWNER: ${{ github.repository_owner }}
       IMAGE_NAME: quiz-platform
       DEPLOY_TAG: ${{ github.sha }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -23,7 +27,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # (2) production 환경에 등록 필요
           aws-region: ap-northeast-2
 
       - name: Log in to GitHub Container Registry
@@ -31,7 +35,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}  # (3) GITHUB_TOKEN만으로는 GHCR push 불가. 별도 PAT를 사용하려면 password: ${{ secrets.GHCR_PAT }} 로 변경
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
@@ -46,12 +50,12 @@ jobs:
       - name: Deploy via SSH to Lightsail
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}
+          host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}   
           username: ubuntu
-          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}     
           script: |
             cd $LIGHTSAIL_PROJECT_PATH
-            # 서버 측 GHCR 로그인
+            # 서버 측 GHCR 로그인: GITHUB_TOKEN 대신 GHCR_PAT 사용 권장
             echo "${{ secrets.GHCR_PAT }}" | docker login $GHCR_REGISTRY -u ${{ github.actor }} --password-stdin
             docker-compose pull
-            docker-compose up -d --build 
+            docker-compose up -d --build
