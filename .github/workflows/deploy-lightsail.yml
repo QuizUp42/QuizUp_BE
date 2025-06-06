@@ -50,16 +50,16 @@ jobs:
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.DEPLOY_TAG }}
 
-      # (5) Compose 파일 서버 동기화
-      - name: Sync Compose file to Lightsail
+      # (5.1) 환경 변수 파일(.env) 서버 동기화
+      - name: Sync env file to Lightsail
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: 22
-          source: "docker-compose.prod.yml"
-          target: "/home/ubuntu/quizup/QuizUp_BE"
+          source: "./.env.production"
+          target: "/home/ubuntu/quizup/QuizUp_BE/.env"
           overwrite: true
 
       # (6) SSH를 통한 Lightsail 배포 (key 옵션 사용)
