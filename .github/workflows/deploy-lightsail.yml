@@ -7,16 +7,16 @@ permissions:
 on:
   push:
     branches: [ main ]
+env:
+  GHCR_REGISTRY: ghcr.io
+  IMAGE_OWNER: quizup42
+  IMAGE_NAME: quiz-platform
+  DEPLOY_TAG: ${{ github.sha }}
+  LIGHTSAIL_PROJECT_PATH: ${{ secrets.LIGHTSAIL_PROJECT_PATH }}
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      LIGHTSAIL_PROJECT_PATH: ${{ secrets.LIGHTSAIL_PROJECT_PATH }}
-      GHCR_REGISTRY: ghcr.io
-      IMAGE_OWNER: quizup42
-      IMAGE_NAME: quiz-platform
-      DEPLOY_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout code
