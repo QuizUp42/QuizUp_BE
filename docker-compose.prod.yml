@@ -19,7 +19,7 @@ services:
       retries: 10
 
   app:
-    image: ghcr.io/nam9nine/quiz-platform:latest
+    image: ghcr.io/quizup42/quiz-platform:latest
     restart: always
     env_file:
       - .env.production
