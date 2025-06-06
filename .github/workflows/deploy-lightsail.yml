@@ -34,7 +34,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}  # (3) GITHUB_TOKEN만으로는 GHCR push 불가. 별도 PAT를 사용하려면 password: ${{ secrets.GHCR_PAT }} 로 변경
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
