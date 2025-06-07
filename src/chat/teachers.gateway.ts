@@ -243,6 +243,10 @@ export class TeachersGateway
       userId: user.id,
     });
     this.server.to(payload.room).emit(EVENTS.QUIZ_CREATED, event);
+    (this.server as any).server
+      .of('/students')
+      .to(payload.room)
+      .emit(EVENTS.QUIZ_CREATED, event);
     return event;
   }
 
