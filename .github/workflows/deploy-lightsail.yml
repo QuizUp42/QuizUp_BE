@@ -50,6 +50,22 @@ jobs:
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.DEPLOY_TAG }}
 
+      # (4.5) Generate .env.production from secrets
+      - name: Generate .env.production
+        run: |
+          cat <<EOF > .env.production
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          NODE_ENV=production
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          EOF
+
       # (5.1) 환경 변수 파일(.env) 서버 동기화
       - name: Sync env file to Lightsail
         uses: appleboy/scp-action@v1
