@@ -227,91 +227,26 @@ export class TeachersGateway
   }
 
   @SubscribeMessage(EVENTS.QUIZ_CREATE)
-  // 클라이언트 → 서버: 퀴즈 생성 요청(payload: QuizDto)을 받음
+  // 클라이언트 → 서버: 퀴즈 생성 요청(payload: QuizDto { room, quizId })
   handleQuiz(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: QuizDto,
   ) {
-    // 브로드캐스트: 룸에 퀴즈 생성 결과(EVENTS.QUIZ_CREATED) 전송
+    // 생성 이벤트(isSubmit=false)
     const user = client.data.user;
-    const event = this.quizService.createEvent({
-      roomId: payload.room,
-      quizId: payload.quizId,
-      quizName: payload.quizName,
-      quizCount: payload.quizCount,
-      isSubmit: payload.isSubmit,
-      userId: user.id,
-    });
+    const event = this.quizService.publishQuiz(
+      payload.quizId.toString(),
+      false,
+      user.id.toString(),
+    );
+    // 교사 네임스페이스 브로드캐스트
     this.server.to(payload.room).emit(EVENTS.QUIZ_CREATED, event);
+    // 학생 네임스페이스 브로드캐스트
+    (this.server as any).server
+      .of('/students')
+      .to(payload.room)
+      .emit(EVENTS.QUIZ_CREATED, event);
     return event;
-  }
-
-  @SubscribeMessage(EVENTS.DRAW_START)
-  // 클라이언트 → 서버: 추첨 시작 요청(payload: {room, participants[]})을 받음
-  async handleDraw(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { room: string },
-  ) {
-    try {
-      const user = client.data.user;
-      console.log(
-        `[${EVENTS.DRAW_START}] user=${user.username}, room=${payload.room}`,
-      );
-      console.log(`[${EVENTS.DRAW_START}] fetching participants from DB`);
-      let roomEntity;
-      try {
-        roomEntity = await this.roomsService.findByCode(payload.room);
-      } catch {
-        if (/^[0-9]+$/.test(payload.room)) {
-          roomEntity = await this.roomsService.findOne(
-            parseInt(payload.room, 10),
-          );
-        } else {
-          throw new WsException(`Room ${payload.room} not found`);
-        }
-      }
-      // DB에 저장된 방 참여자 목록 조회
-      const participants = await this.roomsService.getRoomParticipants(
-        roomEntity.id,
-      );
-      console.log(`[${EVENTS.DRAW_START}] participants:`, participants);
-      console.log(
-        `[${EVENTS.DRAW_START}] participant count:`,
-        participants.length,
-      );
-      console.log(`[${EVENTS.DRAW_START}] calling ChatService.createDraw`);
-      const draw = await this.chatService.createDraw(
-        roomEntity.id,
-        user.id,
-        participants,
-      );
-      console.log(`[${EVENTS.DRAW_START}] createDraw result:`, draw);
-      // 우승자 username 조회
-      const winner = draw.participants.find((p) => p.userId === draw.winnerId);
-      const winnerUsername = winner ? winner.username : null;
-      const resultPayload = {
-        id: draw.id,
-        roomId: draw.roomId,
-        professorId: draw.userId,
-        winnerId: draw.winnerId,
-        winnerUsername,
-        participantsCount: draw.participants.length,
-        timestamp: draw.timestamp,
-        isRelease: draw.isRelease,
-      };
-      console.log(`[${EVENTS.DRAW_RESULT}] broadcasting:`, resultPayload);
-      // 교사 네임스페이스 브로드캐스트
-      this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, resultPayload);
-      // 학생 네임스페이스 브로드캐스트
-      (this.server as any).server
-        .of('/students')
-        .to(payload.room)
-        .emit(EVENTS.DRAW_RESULT, resultPayload);
-      return draw;
-    } catch (err) {
-      console.error(`[${EVENTS.DRAW_START}] error:`, err);
-      throw new WsException(err.message || 'Draw error');
-    }
   }
 
   @SubscribeMessage(EVENTS.OXQUIZ_CREATE)

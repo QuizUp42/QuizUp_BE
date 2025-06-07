@@ -7,6 +7,7 @@ import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
 import { DeepPartial } from 'typeorm';
+import { QuizService } from './quiz.service';
 
 @Injectable()
 export class ChatService {
@@ -21,6 +22,7 @@ export class ChatService {
     private readonly oxAnswerRepository: Repository<OxAnswer>,
     @InjectRepository(Check)
     private readonly checkRepository: Repository<Check>,
+    private readonly quizService: QuizService,
   ) {}
 
   /** 단일 메시지 생성 후 id, 메시지, 작성자 정보(username, role)만 반환 */
@@ -241,6 +243,16 @@ export class ChatService {
           winnerUsername: winner ? winner.username : null,
         };
       }),
+    );
+    // 퀴즈 이벤트
+    const quizzes = this.quizService.getEvents();
+    events.push(
+      ...quizzes.map((q) => ({
+        type: 'quiz' as const,
+        timestamp: q.timestamp,
+        quizId: q.quizId,
+        isSubmit: q.isSubmit,
+      })),
     );
     // 타임스탬프 기준 정렬
     events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());

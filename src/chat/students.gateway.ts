@@ -193,9 +193,13 @@ export class StudentsGateway
         return evt;
       });
       client.emit(EVENTS.MESSAGES, enriched);
-      // 응답: 퀴즈 이력 전송
-      const quizHistory = this.quizService.getEvents(room);
-      client.emit('quizHistory', quizHistory);
+      // 응답: 퀴즈 이력 전송 (numeric roomId 사용)
+      const quizHistory = this.quizService.getEvents();
+      const enrichedQuiz = quizHistory.map((evt) => ({
+        ...evt,
+        mySubmit: evt.isSubmit && evt.userId === client.data.user.id,
+      }));
+      client.emit('quizHistory', enrichedQuiz);
     } catch (err) {
       console.error('[ROOM_JOIN] 처리 중 에러:', err);
       throw err instanceof WsException
