@@ -78,6 +78,18 @@ jobs:
           target: "/home/ubuntu/quizup/QuizUp_BE/.env"
           overwrite: true
 
+      # (5.2) Compose 파일 서버 동기화
+      - name: Sync compose file to Lightsail
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.LIGHTSAIL_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: 22
+          source: "./docker-compose.prod.yml"
+          target: "/home/ubuntu/quizup/QuizUp_BE/docker-compose.prod.yml"
+          overwrite: true
+
       # (6) SSH를 통한 Lightsail 배포 (key 옵션 사용)
       - name: Deploy via SSH to Lightsail
         uses: appleboy/ssh-action@v0.1.8
