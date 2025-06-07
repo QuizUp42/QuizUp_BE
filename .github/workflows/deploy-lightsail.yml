@@ -92,9 +92,13 @@ jobs:
             echo "Current directory: $(pwd)"
             ls -la
 
+            # .env 디렉터리 삭제 및 올바른 .env 파일 설정
+            rm -rf .env
+            mv .env.production .env
+
             # (2) GHCR 로그인
             echo "${{ secrets.GHCR_PAT }}" | docker login ${{ env.GHCR_REGISTRY }} -u ${{ github.actor }} --password-stdin
 
             # (3) Compose 파일을 명시하여 Pull & Up
-            docker compose -f docker-compose.prod.yml --env-file .env.production pull
-            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --build
