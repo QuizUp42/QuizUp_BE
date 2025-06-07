@@ -75,7 +75,7 @@ jobs:
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           port: 22
           source: "./.env.production"
-          target: "/home/ubuntu/quizup/QuizUp_BE/.env"
+          target: "/home/ubuntu/quizup/QuizUp_BE"
           overwrite: true
 
       # (5.2) Compose 파일 서버 동기화
@@ -104,8 +104,7 @@ jobs:
             echo "Current directory: $(pwd)"
             ls -la
 
-            # .env 디렉터리 삭제 및 올바른 .env 파일 설정
-            rm -rf .env
+            # .env.production을 .env로 리네임
             mv .env.production .env
 
             # (2) GHCR 로그인
