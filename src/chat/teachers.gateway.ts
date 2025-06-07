@@ -14,7 +14,8 @@ import { AuthService } from '../auth/auth.service';
 import { ChatService } from './chat.service';
 import { FeatureService } from './feature.service';
 import { UpdateFeatureDto } from './dto/update-feature.dto';
-import { QuizService } from './quiz.service';
+import { QuizService as ChatQuizService } from './quiz.service';
+import { QuizService as HttpQuizService } from '../quiz/quiz.service';
 import { QuizDto } from './dto/quiz.dto';
 import { RoomsService } from '../rooms/rooms.service';
 import { EVENTS } from './events';
@@ -41,7 +42,8 @@ export class TeachersGateway
     private readonly authService: AuthService,
     private readonly chatService: ChatService,
     private readonly featureService: FeatureService,
-    private readonly quizService: QuizService,
+    private readonly quizService: ChatQuizService,
+    private readonly httpQuizService: HttpQuizService,
     private readonly roomsService: RoomsService,
   ) {}
 
@@ -103,18 +105,21 @@ export class TeachersGateway
       role: user.role,
     };
     // 연결 완료 로그만 출력
-    console.log(`Connected: ${client.id} (user: ${user.username})`);
+    console.log(
+      `Connected: ${client.id} (userId: ${user.id}, role: ${user.role})`,
+    );
   }
 
   async handleDisconnect(client: Socket) {
     const user = client.data.user;
-    console.log(`Disconnected: ${client.id} (user: ${user?.username})`);
+    console.log(
+      `Disconnected: ${client.id} (userId: ${user?.id}, role: ${user?.role})`,
+    );
     client.rooms.forEach((room) => {
       if (room !== client.id) {
         // 유저 퇴장 알림 이벤트
         this.server.to(room).emit(EVENTS.USER_LEFT, {
           userId: user.id,
-          username: user.username,
           role: user.role,
         });
       }
@@ -136,7 +141,7 @@ export class TeachersGateway
   ) {
     const user = client.data.user;
     console.log(
-      `[${EVENTS.ROOM_JOIN}] user=${user.username}, room=${payload.room}`,
+      `[${EVENTS.ROOM_JOIN}] userId=${user.id}, role=${user.role}, room=${payload.room}`,
     );
     // 방 코드 유효성 검사
     let roomEntity;
@@ -158,7 +163,6 @@ export class TeachersGateway
     // 브로드캐스트: 룸에 참가 알림(EVENTS.ROOM_JOINED) 전송
     this.server.to(payload.room).emit(EVENTS.ROOM_JOINED, {
       userId: user.id,
-      username: user.username,
       role: user.role,
     });
     // 응답: 클라이언트에게 참가 성공 알림(EVENTS.ROOM_JOINED) 전송
@@ -189,7 +193,7 @@ export class TeachersGateway
       }
     }
     console.log(
-      `[${EVENTS.CHAT_SEND}] from ${user.username} in roomCode=${roomEntity.code} (roomId=${roomEntity.id}): ${payload.text}`,
+      `[${EVENTS.CHAT_SEND}] from ${user.id} in roomCode=${roomEntity.code} (roomId=${roomEntity.id}): ${payload.text}`,
     );
     const msg = await this.chatService.createMessage({
       roomId: roomEntity.id,
@@ -227,25 +231,91 @@ export class TeachersGateway
 
   @SubscribeMessage(EVENTS.QUIZ_CREATE)
   // 클라이언트 → 서버: 퀴즈 생성 요청(payload: QuizDto { room, quizId })
-  handleQuiz(
+  async handleQuiz(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: QuizDto,
   ) {
-    // 생성 이벤트(isSubmit=false)
     const user = client.data.user;
     const event = this.quizService.publishQuiz(
       payload.quizId.toString(),
       false,
       user.id.toString(),
     );
+    // Fetch quiz title from HTTP service
+    const meta = await this.httpQuizService.findOne(payload.quizId);
+    const enriched = { ...event, title: meta.title };
     // 교사 네임스페이스 브로드캐스트
-    this.server.to(payload.room).emit(EVENTS.QUIZ_CREATED, event);
-    // 학생 네임스페이스 브로드캐스트
+    this.server.to(payload.room).emit(EVENTS.QUIZ_CREATED, enriched);
     (this.server as any).server
       .of('/students')
       .to(payload.room)
-      .emit(EVENTS.QUIZ_CREATED, event);
-    return event;
+      .emit(EVENTS.QUIZ_CREATED, enriched);
+    return enriched;
+  }
+
+  @SubscribeMessage(EVENTS.DRAW_START)
+  // 클라이언트 → 서버: 추첨 시작 요청
+  async handleDrawStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { room: string },
+  ) {
+    try {
+      const user = client.data.user;
+      // 교수만 추첨을 시작할 수 있습니다
+      if (user.role !== 'professor') {
+        throw new WsException('교수만 추첨을 시작할 수 있습니다.');
+      }
+      console.log(
+        `[${EVENTS.DRAW_START}] userId=${user.id}, role=${user.role}, room=${payload.room}`,
+      );
+      let roomEntity;
+      try {
+        roomEntity = await this.roomsService.findByCode(payload.room);
+      } catch {
+        if (/^[0-9]+$/.test(payload.room)) {
+          roomEntity = await this.roomsService.findOne(
+            parseInt(payload.room, 10),
+          );
+        } else {
+          throw new WsException(`Room ${payload.room} not found`);
+        }
+      }
+      const participants = await this.roomsService.getRoomParticipants(
+        roomEntity.id,
+      );
+      // 학생 참가자가 있는지 검사
+      const studentParticipants = participants.filter(
+        (p) => p.role === 'student',
+      );
+      if (studentParticipants.length === 0) {
+        throw new WsException('참여한 학생이 없습니다.');
+      }
+      const draw = await this.chatService.createDraw(
+        roomEntity.id,
+        user.id,
+        participants,
+      );
+      const winner = draw.participants.find((p) => p.userId === draw.winnerId);
+      const event = {
+        id: draw.id,
+        timestamp: draw.timestamp,
+        participants: draw.participants,
+        participantsCount: draw.participants.length,
+        professorId: draw.userId,
+        winnerId: draw.winnerId,
+        winnerUsername: winner ? winner.username : null,
+      };
+      console.log(`[${EVENTS.DRAW_RESULT}] broadcasting:`, event);
+      this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, event);
+      (this.server as any).server
+        .of('/students')
+        .to(payload.room)
+        .emit(EVENTS.DRAW_RESULT, event);
+      return event;
+    } catch (err) {
+      console.error(`[${EVENTS.DRAW_START}] error:`, err);
+      throw new WsException(err.message || 'Draw error');
+    }
   }
 
   @SubscribeMessage(EVENTS.OXQUIZ_CREATE)
@@ -257,7 +327,7 @@ export class TeachersGateway
     try {
       const user = client.data.user;
       console.log(
-        `[${EVENTS.OXQUIZ_CREATE}] user=${user.username}, room=${payload.room}`,
+        `[${EVENTS.OXQUIZ_CREATE}] userId=${user.id}, role=${user.role}, room=${payload.room}`,
       );
       console.log(`[${EVENTS.OXQUIZ_CREATE}] calling ChatService.createOxQuiz`);
       let roomEntity;

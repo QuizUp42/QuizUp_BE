@@ -6,8 +6,9 @@ import { Draw } from './entities/draw.entity';
 import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
-import { DeepPartial } from 'typeorm';
+import { DeepPartial, In } from 'typeorm';
 import { QuizService } from './quiz.service';
+import { Quiz as HttpQuiz } from '../quiz/entities/quiz.entity';
 
 @Injectable()
 export class ChatService {
@@ -22,6 +23,8 @@ export class ChatService {
     private readonly oxAnswerRepository: Repository<OxAnswer>,
     @InjectRepository(Check)
     private readonly checkRepository: Repository<Check>,
+    @InjectRepository(HttpQuiz)
+    private readonly httpQuizRepository: Repository<HttpQuiz>,
     private readonly quizService: QuizService,
   ) {}
 
@@ -246,12 +249,20 @@ export class ChatService {
     );
     // 퀴즈 이벤트
     const quizzes = this.quizService.getEvents();
+    // Fetch titles for quizzes
+    const quizIds = quizzes.map((q) => parseInt(q.quizId, 10));
+    const quizEntities = await this.httpQuizRepository.find({
+      where: { id: In(quizIds) },
+    });
+    const quizMap = new Map<number, HttpQuiz>();
+    quizEntities.forEach((qe) => quizMap.set(qe.id, qe));
     events.push(
       ...quizzes.map((q) => ({
         type: 'quiz' as const,
         timestamp: q.timestamp,
         quizId: q.quizId,
         isSubmit: q.isSubmit,
+        title: quizMap.get(parseInt(q.quizId, 10))?.title || null,
       })),
     );
     // 타임스탬프 기준 정렬
