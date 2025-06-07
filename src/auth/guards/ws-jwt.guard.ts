@@ -77,7 +77,6 @@ export class WsJwtAuthGuard implements CanActivate {
     // 클라이언트에 사용자 정보 저장
     client.data.user = {
       id: user.id,
-      username: user.username,
       role: user.role,
     };
 

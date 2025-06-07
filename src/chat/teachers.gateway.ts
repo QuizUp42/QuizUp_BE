@@ -100,7 +100,6 @@ export class TeachersGateway
     }
     client.data.user = {
       id: user.id,
-      username: user.username,
       role: user.role,
     };
     // 연결 완료 로그만 출력
