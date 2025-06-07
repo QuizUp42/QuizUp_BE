@@ -246,12 +246,76 @@ export class TeachersGateway
     const enriched = { ...event, title: meta.title };
     // 교사 네임스페이스 브로드캐스트
     this.server.to(payload.room).emit(EVENTS.QUIZ_CREATED, enriched);
-    // 학생 네임스페이스 브로드캐스트
     (this.server as any).server
       .of('/students')
       .to(payload.room)
       .emit(EVENTS.QUIZ_CREATED, enriched);
     return enriched;
+  }
+
+  @SubscribeMessage(EVENTS.DRAW_START)
+  // 클라이언트 → 서버: 추첨 시작 요청
+  async handleDrawStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { room: string },
+  ) {
+    try {
+      const user = client.data.user;
+      // 교수만 추첨을 시작할 수 있습니다
+      if (user.role !== 'professor') {
+        throw new WsException('교수만 추첨을 시작할 수 있습니다.');
+      }
+      console.log(
+        `[${EVENTS.DRAW_START}] userId=${user.id}, role=${user.role}, room=${payload.room}`,
+      );
+      let roomEntity;
+      try {
+        roomEntity = await this.roomsService.findByCode(payload.room);
+      } catch {
+        if (/^[0-9]+$/.test(payload.room)) {
+          roomEntity = await this.roomsService.findOne(
+            parseInt(payload.room, 10),
+          );
+        } else {
+          throw new WsException(`Room ${payload.room} not found`);
+        }
+      }
+      const participants = await this.roomsService.getRoomParticipants(
+        roomEntity.id,
+      );
+      // 학생 참가자가 있는지 검사
+      const studentParticipants = participants.filter(
+        (p) => p.role === 'student',
+      );
+      if (studentParticipants.length === 0) {
+        throw new WsException('참여한 학생이 없습니다.');
+      }
+      const draw = await this.chatService.createDraw(
+        roomEntity.id,
+        user.id,
+        participants,
+      );
+      const winner = draw.participants.find((p) => p.userId === draw.winnerId);
+      const event = {
+        id: draw.id,
+        timestamp: draw.timestamp,
+        participants: draw.participants,
+        participantsCount: draw.participants.length,
+        professorId: draw.userId,
+        winnerId: draw.winnerId,
+        winnerUsername: winner ? winner.username : null,
+      };
+      console.log(`[${EVENTS.DRAW_RESULT}] broadcasting:`, event);
+      this.server.to(payload.room).emit(EVENTS.DRAW_RESULT, event);
+      (this.server as any).server
+        .of('/students')
+        .to(payload.room)
+        .emit(EVENTS.DRAW_RESULT, event);
+      return event;
+    } catch (err) {
+      console.error(`[${EVENTS.DRAW_START}] error:`, err);
+      throw new WsException(err.message || 'Draw error');
+    }
   }
 
   @SubscribeMessage(EVENTS.OXQUIZ_CREATE)
