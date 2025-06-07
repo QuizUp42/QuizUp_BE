@@ -28,6 +28,9 @@ export class Quiz {
   @JoinColumn({ name: 'userId' })
   creator: User;
 
+  @Column()
+  title: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

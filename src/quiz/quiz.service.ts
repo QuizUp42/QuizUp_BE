@@ -24,6 +24,7 @@ export class QuizService {
     const quiz = this.quizRepository.create({
       roomId: createQuizDto.roomId,
       userId: creatorId,
+      title: createQuizDto.title,
     });
     await this.quizRepository.save(quiz);
     // Create questions

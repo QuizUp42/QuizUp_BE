@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { QuizModule } from '../quiz/quiz.module';
 import { StudentsGateway } from './students.gateway';
 import { TeachersGateway } from './teachers.gateway';
 import { ChatService } from './chat.service';
@@ -15,12 +16,14 @@ import { Draw } from './entities/draw.entity';
 import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
+import { Quiz } from '../quiz/entities/quiz.entity';
 
 @Module({
   imports: [
     forwardRef(() => RoomsModule),
-    TypeOrmModule.forFeature([Message, Draw, OxQuiz, OxAnswer, Check]),
+    TypeOrmModule.forFeature([Message, Draw, OxQuiz, OxAnswer, Check, Quiz]),
     AuthModule,
+    QuizModule,
   ],
   controllers: [ChatController],
   providers: [
