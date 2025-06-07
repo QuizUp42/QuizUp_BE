@@ -6,7 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, QueryFailedError } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { StudentProfile } from './entities/student-profile.entity';
@@ -68,18 +68,33 @@ export class AuthService {
     const user = this.userRepository.create({ name, password: hashed, role });
     const savedUser = await this.userRepository.save(user);
     // 프로필 생성
-    if (role === 'student') {
-      const profile = this.studentProfileRepository.create({
-        studentNo,
-        user: savedUser,
-      });
-      await this.studentProfileRepository.save(profile);
-    } else {
-      const profile = this.professorProfileRepository.create({
-        professorNo: studentNo,
-        user: savedUser,
-      });
-      await this.professorProfileRepository.save(profile);
+    try {
+      if (role === 'student') {
+        const profile = this.studentProfileRepository.create({
+          studentNo,
+          user: savedUser,
+        });
+        await this.studentProfileRepository.save(profile);
+      } else {
+        const profile = this.professorProfileRepository.create({
+          professorNo: studentNo,
+          user: savedUser,
+        });
+        await this.professorProfileRepository.save(profile);
+      }
+    } catch (error) {
+      // Handle unique constraint violation for studentNo or professorNo
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError?.code === '23505' || (error as any).code === '23505')
+      ) {
+        const message =
+          role === 'student'
+            ? 'Student number already exists'
+            : 'Professor number already exists';
+        throw new BadRequestException(message);
+      }
+      throw error;
     }
     // 자동 로그인 토큰
     const payload = { sub: savedUser.id, role: savedUser.role };
