@@ -11,6 +11,7 @@
     "dist",
     "**/*spec.ts",
     "src/chat/chat.gateway.ts",
-    "src/chat/entities/check-response.entity.ts"
+    "src/chat/entities/check-response.entity.ts",
+    "src/chat/quiz.controller.ts"
   ]
 }

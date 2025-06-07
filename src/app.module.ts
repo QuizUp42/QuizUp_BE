@@ -36,7 +36,7 @@ import { RankingModule } from './ranking/ranking.module';
         database: config.get<string>('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true,
-        dropSchema: false,
+        dropSchema: process.env.NODE_ENV !== 'production',
         connectTimeoutMS: 10000,
       }),
     }),

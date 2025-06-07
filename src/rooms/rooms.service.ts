@@ -210,16 +210,28 @@ export class RoomsService {
 
   /** 학생 프로필을 방에 추가합니다. */
   async addStudentToRoom(userId: number, roomId: number): Promise<void> {
+    // 학생 프로필 조회
     const studentProfile = await this.studentProfileRepository.findOne({
       where: { user: { id: userId } },
     });
     if (!studentProfile) {
       throw new Error('Student profile not found');
     }
-    await this.roomsRepository
-      .createQueryBuilder()
-      .relation(Room, 'students')
-      .of(roomId)
-      .add(studentProfile.id);
+    // 이미 방에 속해 있는지 확인
+    const room = await this.roomsRepository.findOne({
+      where: { id: roomId },
+      relations: ['students'],
+    });
+    if (!room) {
+      throw new NotFoundException(`Room with id ${roomId} not found`);
+    }
+    const exists = room.students.some((sp) => sp.id === studentProfile.id);
+    if (!exists) {
+      await this.roomsRepository
+        .createQueryBuilder()
+        .relation(Room, 'students')
+        .of(roomId)
+        .add(studentProfile.id);
+    }
   }
 }
