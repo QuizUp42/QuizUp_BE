@@ -41,7 +41,6 @@ export class JwtAuthGuard implements CanActivate {
       // 요청 객체에 사용자 정보 저장 (username은 DB 값 사용)
       request.user = {
         userId: user.id,
-        username: user.username,
         role: payload.role,
       };
       return true;

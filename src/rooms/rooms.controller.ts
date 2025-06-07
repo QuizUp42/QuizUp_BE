@@ -19,8 +19,8 @@ import { Request } from 'express';
 
 interface AuthUser {
   userId: number;
-  username: string;
   role: 'student' | 'professor';
+  username?: string;
 }
 
 // Express Request 타입에 user 프로퍼티 추가

@@ -99,7 +99,6 @@ export class StudentsGateway
 
     client.data.user = {
       id: user.id,
-      username: user.username,
       role: user.role,
     };
     // 연결 완료: 인증된 학생 클라이언트
