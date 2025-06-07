@@ -39,7 +39,7 @@ export class QuizController {
     @Body(new ValidationPipe({ transform: true, whitelist: true }))
     createQuizDto: CreateQuizDto,
   ) {
-    const creatorId = (req.user as any).userId;
+    const creatorId = req.user.userId;
     return this.quizService.create(createQuizDto, creatorId);
   }
 
@@ -51,7 +51,7 @@ export class QuizController {
     @Param('id') id: string,
     @Body() submitQuizDto: SubmitQuizDto,
   ) {
-    const userId = (req.user as any).userId;
+    const userId = req.user.userId;
     return this.quizService.submitAnswer(+id, userId, submitQuizDto.answer);
   }
 

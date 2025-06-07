@@ -66,10 +66,14 @@ export class QuizService {
 
   // Submission logic to be implemented per question
   submitAnswer(
-    quizId: number,
-    userId: number,
-    answer: string,
+    _quizId: number,
+    _userId: number,
+    _answer: string,
   ): Promise<{ isCorrect: boolean; correctAnswer: string }> {
+    // consume parameters to avoid unused variable errors
+    void _quizId;
+    void _userId;
+    void _answer;
     throw new NotImplementedException(
       'Submit answer per question is not implemented yet',
     );
