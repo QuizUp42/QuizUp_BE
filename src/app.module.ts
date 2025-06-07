@@ -35,7 +35,7 @@ import { RankingModule } from './ranking/ranking.module';
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false,
+        synchronize: true,
         dropSchema: false,
         connectTimeoutMS: 10000,
       }),
