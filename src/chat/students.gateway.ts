@@ -13,7 +13,6 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
 import { ChatService } from './chat.service';
-import { QuizService } from './quiz.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { AnswerOxQuizDto } from './dto/answer-ox-quiz.dto';
@@ -38,7 +37,6 @@ export class StudentsGateway
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
     private readonly chatService: ChatService,
-    private readonly quizService: QuizService,
     private readonly roomsService: RoomsService,
   ) {}
 
@@ -191,14 +189,8 @@ export class StudentsGateway
         }
         return evt;
       });
+      // Unified 모든 이벤트 전송: chat, oxquiz, check, draw, quiz, image 등 모두 포함
       client.emit(EVENTS.MESSAGES, enriched);
-      // 응답: 퀴즈 이력 전송 (numeric roomId 사용)
-      const quizHistory = this.quizService.getEvents();
-      const enrichedQuiz = quizHistory.map((evt) => ({
-        ...evt,
-        mySubmit: evt.isSubmit && evt.userId === client.data.user.id,
-      }));
-      client.emit('quizHistory', enrichedQuiz);
     } catch (err) {
       console.error('[ROOM_JOIN] 처리 중 에러:', err);
       throw err instanceof WsException
