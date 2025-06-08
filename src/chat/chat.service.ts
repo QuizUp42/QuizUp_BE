@@ -9,6 +9,8 @@ import { Check } from './entities/check.entity';
 import { DeepPartial, In } from 'typeorm';
 import { QuizService } from './quiz.service';
 import { Quiz as HttpQuiz } from '../quiz/entities/quiz.entity';
+import { RoomImage } from '../rooms/entities/room-image.entity';
+import { S3Service } from '../aws/s3.service';
 
 @Injectable()
 export class ChatService {
@@ -25,7 +27,10 @@ export class ChatService {
     private readonly checkRepository: Repository<Check>,
     @InjectRepository(HttpQuiz)
     private readonly httpQuizRepository: Repository<HttpQuiz>,
+    @InjectRepository(RoomImage)
+    private readonly roomImageRepository: Repository<RoomImage>,
     private readonly quizService: QuizService,
+    private readonly s3Service: S3Service,
   ) {}
 
   /** 단일 메시지 생성 후 id, 메시지, 작성자 정보(username, role)만 반환 */
@@ -270,6 +275,21 @@ export class ChatService {
         title: quizMap.get(parseInt(q.quizId, 10))?.title || null,
       })),
     );
+    // 이미지 이벤트 추가 (갤러리)
+    const images = await this.roomImageRepository.find({
+      where: { roomId: rid },
+      order: { createdAt: 'ASC' },
+    });
+    const imageEvents = await Promise.all(
+      images.map(async (img) => ({
+        type: 'image' as const,
+        timestamp: img.createdAt,
+        id: img.id,
+        key: img.key,
+        url: await this.s3Service.getDownloadUrl(img.key),
+      })),
+    );
+    events.push(...imageEvents);
     // 타임스탬프 기준 정렬
     events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     return events;
