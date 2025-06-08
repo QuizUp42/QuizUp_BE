@@ -8,6 +8,7 @@ import { ChatService } from '../chat/chat.service';
 import { User } from '../auth/entities/user.entity';
 import { ProfessorProfile } from '../auth/entities/professor-profile.entity';
 import { StudentProfile } from '../auth/entities/student-profile.entity';
+import { RoomImage } from './entities/room-image.entity';
 
 @Injectable()
 export class RoomsService {
@@ -19,6 +20,8 @@ export class RoomsService {
     private readonly professorProfileRepository: Repository<ProfessorProfile>,
     @InjectRepository(StudentProfile)
     private readonly studentProfileRepository: Repository<StudentProfile>,
+    @InjectRepository(RoomImage)
+    private readonly roomImageRepository: Repository<RoomImage>,
   ) {}
 
   async create(createRoomDto: CreateRoomDto): Promise<Room> {
@@ -233,5 +236,27 @@ export class RoomsService {
         .of(roomId)
         .add(studentProfile.id);
     }
+  }
+
+  /**
+   * 방에 새로운 이미지를 추가합니다.
+   */
+  async addRoomImage(roomId: number, key: string): Promise<RoomImage> {
+    // 방 존재 확인
+    await this.findOne(roomId);
+    const image = this.roomImageRepository.create({ roomId, key });
+    return this.roomImageRepository.save(image);
+  }
+
+  /**
+   * 방에 업로드된 모든 이미지 조회
+   */
+  async getRoomImages(roomId: number): Promise<RoomImage[]> {
+    // 방 존재 확인
+    await this.findOne(roomId);
+    return this.roomImageRepository.find({
+      where: { roomId },
+      order: { createdAt: 'ASC' },
+    });
   }
 }

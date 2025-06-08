@@ -11,6 +11,7 @@ import { StudentProfile } from '../../auth/entities/student-profile.entity';
 import { ProfessorProfile } from '../../auth/entities/professor-profile.entity';
 import { Message } from '../../chat/entities/message.entity';
 import { Check } from '../../chat/entities/check.entity';
+import { RoomImage } from './room-image.entity';
 
 @Entity('rooms')
 export class Room {
@@ -25,6 +26,10 @@ export class Room {
 
   @Column({ nullable: true })
   qrCodeUrl: string;
+
+  // S3 object key for room image
+  @Column({ nullable: true })
+  imageKey: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -46,4 +51,7 @@ export class Room {
 
   @OneToMany(() => Check, (check) => check.room)
   checks: Check[];
+
+  @OneToMany(() => RoomImage, (image) => image.room)
+  images: RoomImage[];
 }

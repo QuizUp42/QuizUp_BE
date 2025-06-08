@@ -35,6 +35,6 @@ import { Quiz } from '../quiz/entities/quiz.entity';
     WsRolesGuard,
     QuizService,
   ],
-  exports: [ChatService],
+  exports: [ChatService, StudentsGateway, TeachersGateway],
 })
 export class ChatModule {}
