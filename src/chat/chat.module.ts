@@ -18,11 +18,20 @@ import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
 import { Quiz } from '../quiz/entities/quiz.entity';
+import { RoomImage } from '../rooms/entities/room-image.entity';
 
 @Module({
   imports: [
     forwardRef(() => RoomsModule),
-    TypeOrmModule.forFeature([Message, Draw, OxQuiz, OxAnswer, Check, Quiz]),
+    TypeOrmModule.forFeature([
+      Message,
+      Draw,
+      OxQuiz,
+      OxAnswer,
+      Check,
+      Quiz,
+      RoomImage,
+    ]),
     AuthModule,
     S3Module,
     QuizModule,
