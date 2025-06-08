@@ -7,4 +7,8 @@ export class CreateRoomDto {
   @IsString()
   @IsOptional()
   qrCodeUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  imageKey?: string;
 }

@@ -1,6 +1,7 @@
-import { IsString } from 'class-validator';
+import { IsArray, IsString } from 'class-validator';
 
 export class SubmitQuizDto {
-  @IsString()
-  answer: string;
+  @IsArray()
+  @IsString({ each: true })
+  answers: string[];
 }

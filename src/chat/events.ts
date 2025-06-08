@@ -45,4 +45,6 @@ export const EVENTS = {
   OXQUIZ_CREATED: 'oxquiz:created' as const,
   // 서버 → 클라이언트: 유저 퇴장 알림
   USER_LEFT: 'user:left' as const,
+  // 방 이미지 업로드 시 브로드캐스트 이벤트
+  IMAGE_UPLOADED: 'image:uploaded' as const,
 };

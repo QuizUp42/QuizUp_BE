@@ -1,7 +1,7 @@
 import {
   Injectable,
   NotFoundException,
-  NotImplementedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -65,18 +65,46 @@ export class QuizService {
     });
   }
 
-  // Submission logic to be implemented per question
-  submitAnswer(
-    _quizId: number,
-    _userId: number,
-    _answer: string,
-  ): Promise<{ isCorrect: boolean; correctAnswer: string }> {
-    // consume parameters to avoid unused variable errors
-    void _quizId;
-    void _userId;
-    void _answer;
-    throw new NotImplementedException(
-      'Submit answer per question is not implemented yet',
-    );
+  // Grade submitted quiz answers for a user
+  async submitAnswer(
+    quizId: number,
+    userId: number,
+    answers: string[],
+  ): Promise<{
+    quizId: number;
+    userId: number;
+    totalQuestions: number;
+    correctCount: number;
+    results: { isCorrect: boolean; correctAnswer: string }[];
+  }> {
+    // Fetch quiz with its questions
+    const quiz = await this.quizRepository.findOne({
+      where: { id: quizId },
+      relations: ['questions'],
+    });
+    if (!quiz) {
+      throw new NotFoundException(`Quiz with id ${quizId} not found`);
+    }
+    // Ensure answer count matches question count
+    const questions = quiz.questions.sort((a, b) => a.id - b.id);
+    if (answers.length !== questions.length) {
+      throw new BadRequestException(
+        `${questions.length}개의 답변이 필요하지만 ${answers.length}개를 받았습니다`,
+      );
+    }
+    // Grade each answer
+    const results = questions.map((q, idx) => ({
+      isCorrect: q.correctAnswer === answers[idx],
+      correctAnswer: q.correctAnswer,
+    }));
+    const correctCount = results.filter((r) => r.isCorrect).length;
+    // Return detailed grading summary
+    return {
+      quizId,
+      userId,
+      totalQuestions: questions.length,
+      correctCount,
+      results,
+    };
   }
 }

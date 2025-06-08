@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { S3Module } from '../aws/s3.module';
 import { QuizModule } from '../quiz/quiz.module';
 import { StudentsGateway } from './students.gateway';
 import { TeachersGateway } from './teachers.gateway';
@@ -17,12 +18,22 @@ import { OxQuiz } from './entities/ox-quiz.entity';
 import { OxAnswer } from './entities/ox-answer.entity';
 import { Check } from './entities/check.entity';
 import { Quiz } from '../quiz/entities/quiz.entity';
+import { RoomImage } from '../rooms/entities/room-image.entity';
 
 @Module({
   imports: [
     forwardRef(() => RoomsModule),
-    TypeOrmModule.forFeature([Message, Draw, OxQuiz, OxAnswer, Check, Quiz]),
+    TypeOrmModule.forFeature([
+      Message,
+      Draw,
+      OxQuiz,
+      OxAnswer,
+      Check,
+      Quiz,
+      RoomImage,
+    ]),
     AuthModule,
+    S3Module,
     QuizModule,
   ],
   controllers: [ChatController],
@@ -35,6 +46,6 @@ import { Quiz } from '../quiz/entities/quiz.entity';
     WsRolesGuard,
     QuizService,
   ],
-  exports: [ChatService],
+  exports: [ChatService, StudentsGateway, TeachersGateway],
 })
 export class ChatModule {}
