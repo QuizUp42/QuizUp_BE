@@ -247,17 +247,22 @@ export class ChatService {
         };
       }),
     );
-    // 퀴즈 이벤트
-    const quizzes = this.quizService.getEvents();
-    // Fetch titles for quizzes
-    const quizIds = quizzes.map((q) => parseInt(q.quizId, 10));
+    // 퀴즈 이벤트: 전체 이벤트 가져오기
+    const allQuizEvents = this.quizService.getEvents();
+
+    // Fetch titles for all quizzes in events
+    const quizIds = allQuizEvents.map((q) => parseInt(q.quizId, 10));
     const quizEntities = await this.httpQuizRepository.find({
       where: { id: In(quizIds) },
     });
     const quizMap = new Map<number, HttpQuiz>();
     quizEntities.forEach((qe) => quizMap.set(qe.id, qe));
+    // Filter quiz events by current roomId
+    const quizEvents = allQuizEvents.filter(
+      (q) => quizMap.get(parseInt(q.quizId, 10))?.roomId === rid,
+    );
     events.push(
-      ...quizzes.map((q) => ({
+      ...quizEvents.map((q) => ({
         type: 'quiz' as const,
         timestamp: q.timestamp,
         quizId: q.quizId,

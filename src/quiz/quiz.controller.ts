@@ -6,7 +6,9 @@ import {
   Param,
   Req,
   UseGuards,
+  UseInterceptors,
   ValidationPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -14,7 +16,9 @@ import { Roles } from '../auth/roles.decorator';
 import { QuizService } from './quiz.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
+import { QuizResponseInterceptor } from './interceptors/quiz-response.interceptor';
 
+@UseInterceptors(QuizResponseInterceptor)
 @Controller('quiz')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
@@ -27,8 +31,8 @@ export class QuizController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.quizService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.quizService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,11 +52,11 @@ export class QuizController {
   @Post(':id/submit')
   submit(
     @Req() req: any,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() submitQuizDto: SubmitQuizDto,
   ) {
     const userId = req.user.userId;
-    return this.quizService.submitAnswer(+id, userId, submitQuizDto.answer);
+    return this.quizService.submitAnswer(id, userId, submitQuizDto.answers);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
