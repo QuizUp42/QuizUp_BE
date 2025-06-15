@@ -141,9 +141,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('random-nickname')
   async assignRandomNickname(@Req() req: Request): Promise<RandomNicknameDto> {
-    const userId = (req.user as any).userId;
     const nickname = await this.authService.generateRandomNickname();
-    await this.authService.updateUsername(userId, nickname);
     return { nickname };
   }
 
