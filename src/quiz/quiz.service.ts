@@ -9,6 +9,7 @@ import { Quiz } from './entities/quiz.entity';
 import { Question } from './entities/question.entity';
 import { Submission } from './entities/submission.entity';
 import { CreateQuizDto } from './dto/create-quiz.dto';
+import { In } from 'typeorm';
 
 @Injectable()
 export class QuizService {
@@ -232,6 +233,74 @@ export class QuizService {
       };
     });
     // Sort by totalScore descending
+    return leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  }
+
+  /** Get leaderboard aggregated across all quizzes in a room */
+  async getRoomRanking(roomId: number): Promise<
+    {
+      userId: number;
+      username: string;
+      correctCount: number;
+      totalScore: number;
+    }[]
+  > {
+    // Find all quizzes in the room
+    const quizzes = await this.quizRepository.find({
+      where: { roomId },
+      relations: ['questions'],
+    });
+    if (quizzes.length === 0) {
+      throw new NotFoundException(`No quizzes found for room ${roomId}`);
+    }
+    // Map quizId to its sorted questions array
+    const quizMap = new Map<number, { correctAnswer: string }[]>();
+    quizzes.forEach((quiz) => {
+      const sorted = quiz.questions.sort((a, b) => a.id - b.id);
+      quizMap.set(
+        quiz.id,
+        sorted.map((q) => ({ correctAnswer: q.correctAnswer })),
+      );
+    });
+    const quizIds = quizzes.map((q) => q.id);
+    // Load all submissions for these quizzes
+    const submissions = await this.submissionRepository.find({
+      where: { quizId: In(quizIds) },
+      relations: ['user'],
+    });
+    // Aggregate per userId
+    const scoreMap = new Map<
+      number,
+      { username: string; correctCount: number }
+    >();
+    submissions.forEach((s) => {
+      const questions = quizMap.get(s.quizId) || [];
+      let userCorrect = 0;
+      questions.forEach((q, idx) => {
+        if (s.answers[idx] === q.correctAnswer) {
+          userCorrect += 1;
+        }
+      });
+      const prev = scoreMap.get(s.userId);
+      if (prev) {
+        prev.correctCount += userCorrect;
+      } else {
+        scoreMap.set(s.userId, {
+          username: s.user?.username || '',
+          correctCount: userCorrect,
+        });
+      }
+    });
+    // Build leaderboard array
+    const leaderboard = Array.from(scoreMap.entries()).map(
+      ([userId, data]) => ({
+        userId,
+        username: data.username,
+        correctCount: data.correctCount,
+        totalScore: data.correctCount * 10,
+      }),
+    );
+    // Sort descending by totalScore
     return leaderboard.sort((a, b) => b.totalScore - a.totalScore);
   }
 }

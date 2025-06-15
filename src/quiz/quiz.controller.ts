@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { QuizService } from './quiz.service';
 import { QuizService as ChatQuizService } from '../chat/quiz.service';
+import { RoomsService } from '../rooms/rooms.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
 import { QuizResponseInterceptor } from './interceptors/quiz-response.interceptor';
@@ -25,6 +26,7 @@ export class QuizController {
   constructor(
     private readonly quizService: QuizService,
     private readonly chatQuizService: ChatQuizService,
+    private readonly roomsService: RoomsService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -116,7 +118,14 @@ export class QuizController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id/ranking')
-  async getRanking(@Param('id', ParseIntPipe) id: number) {
+  async getQuizRanking(@Param('id', ParseIntPipe) id: number) {
     return this.quizService.getRanking(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('room/code/:code/ranking')
+  async getRoomRankingByCode(@Param('code') code: string) {
+    const room = await this.roomsService.findByCode(code);
+    return this.quizService.getRoomRanking(room.id);
   }
 }
