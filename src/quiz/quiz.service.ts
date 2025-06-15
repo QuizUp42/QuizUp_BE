@@ -191,4 +191,47 @@ export class QuizService {
     });
     return { quizId, totalResponses: total, questions: stats };
   }
+
+  /** Get leaderboard for a quiz */
+  async getRanking(quizId: number): Promise<
+    {
+      userId: number;
+      username: string;
+      correctCount: number;
+      totalScore: number;
+    }[]
+  > {
+    const quiz = await this.quizRepository.findOne({
+      where: { id: quizId },
+      relations: ['questions'],
+    });
+    if (!quiz) {
+      throw new NotFoundException(`Quiz with id ${quizId} not found`);
+    }
+    // Sort questions by id
+    const questions = quiz.questions.sort((a, b) => a.id - b.id);
+    // Load submissions with user relation
+    const submissions = await this.submissionRepository.find({
+      where: { quizId },
+      relations: ['user'],
+    });
+    // Compute scores
+    const leaderboard = submissions.map((s) => {
+      let correctCount = 0;
+      questions.forEach((q, idx) => {
+        if (s.answers[idx] === q.correctAnswer) {
+          correctCount += 1;
+        }
+      });
+      const totalScore = correctCount * 10;
+      return {
+        userId: s.userId,
+        username: s.user?.username || '',
+        correctCount,
+        totalScore,
+      };
+    });
+    // Sort by totalScore descending
+    return leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+  }
 }

@@ -113,4 +113,10 @@ export class QuizController {
       questions: detailedQuestions,
     };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/ranking')
+  async getRanking(@Param('id', ParseIntPipe) id: number) {
+    return this.quizService.getRanking(id);
+  }
 }
