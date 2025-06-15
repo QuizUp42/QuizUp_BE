@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   Delete,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -16,6 +17,7 @@ import { Response, Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CookieOptions } from 'express';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import { RandomNicknameDto } from './dto/random-nickname.dto';
 
 // 쿠키 옵션 동적 생성 함수
 const isProd = process.env.NODE_ENV === 'production';
@@ -134,5 +136,22 @@ export class AuthController {
     const userId = (req.user as any).userId;
     await this.authService.updateUsername(userId, updateUsernameDto.username);
     return { message: 'Username updated successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('random-nickname')
+  async assignRandomNickname(@Req() req: Request): Promise<RandomNicknameDto> {
+    const userId = (req.user as any).userId;
+    const nickname = await this.authService.generateRandomNickname();
+    await this.authService.updateUsername(userId, nickname);
+    return { nickname };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('random-nickname')
+  async getRandomNickname(@Req() req: Request): Promise<RandomNicknameDto> {
+    const userId = (req.user as any).userId;
+    const user = await this.authService.findUserById(userId);
+    return { nickname: user.username };
   }
 }

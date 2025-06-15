@@ -4,7 +4,7 @@ if (typeof (globalThis as any).crypto === 'undefined') {
   (globalThis as any).crypto = webcrypto;
 }
 
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -16,6 +16,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { ChatModule } from './chat/chat.module';
 import { QuizModule } from './quiz/quiz.module';
 import { RankingModule } from './ranking/ranking.module';
+import { DataSource } from 'typeorm';
 
 @Module({
   imports: [
@@ -37,6 +38,9 @@ import { RankingModule } from './ranking/ranking.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true,
         dropSchema: process.env.NODE_ENV !== 'production',
+        extra: {
+          options: `-c timezone=Asia/Seoul`,
+        },
         connectTimeoutMS: 10000,
       }),
     }),
@@ -50,4 +54,9 @@ import { RankingModule } from './ranking/ranking.module';
   controllers: [AppController, MeController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements OnModuleInit {
+  constructor(private readonly dataSource: DataSource) {}
+  async onModuleInit() {
+    await this.dataSource.query(`SET TIME ZONE 'Asia/Seoul';`);
+  }
+}

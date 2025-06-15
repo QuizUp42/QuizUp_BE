@@ -204,4 +204,63 @@ export class AuthService {
     }
     await this.userRepository.update(userId, { username });
   }
+
+  async generateRandomNickname(): Promise<string> {
+    const adjectives = [
+      '용감한',
+      '빠른',
+      '영리한',
+      '강력한',
+      '상냥한',
+      '빛나는',
+      '행복한',
+      '자유로운',
+      '화려한',
+      '강인한',
+      '씩씩한',
+      '부드러운',
+      '차분한',
+      '환한',
+      '고요한',
+      '용맹한',
+      '기민한',
+      '온화한',
+      '우아한',
+      '민첩한',
+    ];
+    const animals = [
+      '사자',
+      '호랑이',
+      '독수리',
+      '상어',
+      '늑대',
+      '돌고래',
+      '코끼리',
+      '펭귄',
+      '여우',
+      '곰',
+      '부엉이',
+      '원숭이',
+      '사슴',
+      '악어',
+      '고래',
+      '수달',
+      '까치',
+      '공작새',
+      '닭',
+      '오리',
+    ];
+    let nickname: string;
+    do {
+      const adjective =
+        adjectives[Math.floor(Math.random() * adjectives.length)];
+      const animal = animals[Math.floor(Math.random() * animals.length)];
+      // Increased numeric range to reduce collisions
+      const number = Math.floor(Math.random() * 100000);
+      nickname = `${adjective}${animal}${number}`;
+    } while (
+      await this.userRepository.findOne({ where: { username: nickname } })
+    );
+    return nickname;
+  }
 }
