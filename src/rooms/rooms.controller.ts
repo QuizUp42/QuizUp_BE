@@ -74,6 +74,13 @@ export class RoomsController {
     return this.roomsService.findOne(+id);
   }
 
+  /** Get room id by its code */
+  @Get('code/:code')
+  async getIdByCode(@Param('code') code: string) {
+    const room = await this.roomsService.findByCode(code);
+    return { id: room.id };
+  }
+
   @Put(':id')
   update(@Param('id') id: string, @Body() updateRoomDto: UpdateRoomDto) {
     return this.roomsService.update(+id, updateRoomDto);
