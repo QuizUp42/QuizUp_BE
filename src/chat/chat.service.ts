@@ -291,7 +291,16 @@ export class ChatService {
     );
     events.push(...imageEvents);
     // 타임스탬프 기준 정렬
-    events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    return events;
+    events.sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    // 한국 시간(KST)으로 변환된 ISO 문자열로 타임스탬프 포맷팅
+    const formatted = events.map((evt) => {
+      const original = new Date(evt.timestamp);
+      const kst = new Date(original.getTime() + 9 * 60 * 60 * 1000);
+      return { ...evt, timestamp: kst.toISOString().replace('Z', '+09:00') };
+    });
+    return formatted;
   }
 }
