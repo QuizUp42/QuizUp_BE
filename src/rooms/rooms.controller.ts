@@ -69,6 +69,13 @@ export class RoomsController {
     return this.roomsService.findAll();
   }
 
+  /** Get room id by its code */
+  @Get('code/:code')
+  async getIdByCode(@Param('code') code: string) {
+    const room = await this.roomsService.findByCode(code);
+    return { id: room.id };
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.roomsService.findOne(+id);

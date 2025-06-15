@@ -15,7 +15,6 @@ import { S3Module } from './aws/s3.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { ChatModule } from './chat/chat.module';
 import { QuizModule } from './quiz/quiz.module';
-import { RankingModule } from './ranking/ranking.module';
 import { DataSource } from 'typeorm';
 
 @Module({
@@ -49,7 +48,6 @@ import { DataSource } from 'typeorm';
     RoomsModule,
     ChatModule,
     QuizModule,
-    RankingModule,
   ],
   controllers: [AppController, MeController],
   providers: [AppService],
