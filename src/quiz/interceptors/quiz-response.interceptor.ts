@@ -14,7 +14,14 @@ export class QuizResponseInterceptor implements NestInterceptor {
     const isProfessor = request.user?.role === 'professor';
     return next.handle().pipe(
       map((quiz: any) => {
-        if (!isProfessor && quiz && Array.isArray(quiz.questions)) {
+        const path: string = request.url || '';
+        // Do not strip fields for professors or on the score endpoint
+        if (
+          !isProfessor &&
+          quiz &&
+          Array.isArray(quiz.questions) &&
+          !path.includes('/score')
+        ) {
           const filteredQuestions = quiz.questions.map((q: any) => ({
             id: q.id,
             quizId: q.quizId,

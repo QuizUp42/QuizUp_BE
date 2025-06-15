@@ -34,7 +34,7 @@ import { RoomImage } from '../rooms/entities/room-image.entity';
     ]),
     AuthModule,
     S3Module,
-    QuizModule,
+    forwardRef(() => QuizModule),
   ],
   controllers: [ChatController],
   providers: [
@@ -46,6 +46,6 @@ import { RoomImage } from '../rooms/entities/room-image.entity';
     WsRolesGuard,
     QuizService,
   ],
-  exports: [ChatService, StudentsGateway, TeachersGateway],
+  exports: [ChatService, StudentsGateway, TeachersGateway, QuizService],
 })
 export class ChatModule {}
